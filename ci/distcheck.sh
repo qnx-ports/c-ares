@@ -1,16 +1,15 @@
 #!/bin/sh
-set -e
+# Copyright (C) The c-ares project and its contributors
+# SPDX-License-Identifier: MIT
+set -e -x
 
-OS=""
-if [ "$TRAVIS_OS_NAME" != "" ]; then
-    OS="$TRAVIS_OS_NAME"
-elif [ "$CIRRUS_OS" != "" ]; then
-    OS="$CIRRUS_OS"
-fi
+OS=`uname -s || true`
 
-if [ "$OS" = "linux" ]; then
+if [ "$OS" = "Linux" ]; then
     # Make distribution tarball
-    ./maketgz 99.98.97
+    autoreconf -fi
+    ./configure
+    make dist VERSION=99.98.97
     # Extract distribution tarball for building
     tar xvf c-ares-99.98.97.tar.gz
     cd c-ares-99.98.97

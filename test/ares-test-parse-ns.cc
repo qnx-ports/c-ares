@@ -1,3 +1,28 @@
+/* MIT License
+ *
+ * Copyright (c) The c-ares project and its contributors
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice (including the next
+ * paragraph) shall be included in all copies or substantial portions of the
+ * Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ * SPDX-License-Identifier: MIT
+ */
 #include "ares-test.h"
 #include "dns-proto.h"
 
@@ -15,7 +40,7 @@ TEST_F(LibraryTest, ParseNsReplyOK) {
   std::vector<byte> data = pkt.data();
 
   struct hostent *host = nullptr;
-  EXPECT_EQ(ARES_SUCCESS, ares_parse_ns_reply(data.data(), data.size(), &host));
+  EXPECT_EQ(ARES_SUCCESS, ares_parse_ns_reply(data.data(), (int)data.size(), &host));
   ASSERT_NE(nullptr, host);
   std::stringstream ss;
   ss << HostEnt(host);
@@ -38,7 +63,7 @@ TEST_F(LibraryTest, ParseNsReplyMultiple) {
   std::vector<byte> data = pkt.data();
 
   struct hostent *host = nullptr;
-  EXPECT_EQ(ARES_SUCCESS, ares_parse_ns_reply(data.data(), data.size(), &host));
+  EXPECT_EQ(ARES_SUCCESS, ares_parse_ns_reply(data.data(), (int)data.size(), &host));
   ASSERT_NE(nullptr, host);
   std::stringstream ss;
   ss << HostEnt(host);
@@ -57,7 +82,7 @@ TEST_F(LibraryTest, ParseNsReplyErrors) {
   // No question.
   pkt.questions_.clear();
   data = pkt.data();
-  EXPECT_EQ(ARES_EBADRESP, ares_parse_ns_reply(data.data(), data.size(), &host));
+  EXPECT_EQ(ARES_EBADRESP, ares_parse_ns_reply(data.data(), (int)data.size(), &host));
   pkt.add_question(new DNSQuestion("example.com", T_NS));
 
 #ifdef DISABLED
@@ -65,7 +90,7 @@ TEST_F(LibraryTest, ParseNsReplyErrors) {
   pkt.questions_.clear();
   pkt.add_question(new DNSQuestion("Axample.com", T_NS));
   data = pkt.data();
-  EXPECT_EQ(ARES_ENODATA, ares_parse_ns_reply(data.data(), data.size(), &host));
+  EXPECT_EQ(ARES_ENODATA, ares_parse_ns_reply(data.data(), (int)data.size(), &host));
   pkt.questions_.clear();
   pkt.add_question(new DNSQuestion("example.com", T_NS));
 #endif
@@ -73,7 +98,7 @@ TEST_F(LibraryTest, ParseNsReplyErrors) {
   // Two questions.
   pkt.add_question(new DNSQuestion("example.com", T_NS));
   data = pkt.data();
-  EXPECT_EQ(ARES_EBADRESP, ares_parse_ns_reply(data.data(), data.size(), &host));
+  EXPECT_EQ(ARES_EBADRESP, ares_parse_ns_reply(data.data(), (int)data.size(), &host));
   pkt.questions_.clear();
   pkt.add_question(new DNSQuestion("example.com", T_NS));
 
@@ -81,21 +106,24 @@ TEST_F(LibraryTest, ParseNsReplyErrors) {
   pkt.answers_.clear();
   pkt.add_answer(new DNSMxRR("example.com", 100, 100, "mx1.example.com"));
   data = pkt.data();
-  EXPECT_EQ(ARES_ENODATA, ares_parse_ns_reply(data.data(), data.size(), &host));
+  EXPECT_EQ(ARES_ENODATA, ares_parse_ns_reply(data.data(), (int)data.size(), &host));
   pkt.answers_.clear();
   pkt.add_answer(new DNSNsRR("example.com", 100, "ns.example.com"));
 
   // No answer.
   pkt.answers_.clear();
   data = pkt.data();
-  EXPECT_EQ(ARES_ENODATA, ares_parse_ns_reply(data.data(), data.size(), &host));
+  EXPECT_EQ(ARES_ENODATA, ares_parse_ns_reply(data.data(), (int)data.size(), &host));
   pkt.add_answer(new DNSNsRR("example.com", 100, "ns.example.com"));
 
   // Truncated packets.
   data = pkt.data();
   for (size_t len = 1; len < data.size(); len++) {
-    EXPECT_EQ(ARES_EBADRESP, ares_parse_ns_reply(data.data(), len, &host));
+    EXPECT_EQ(ARES_EBADRESP, ares_parse_ns_reply(data.data(), (int)len, &host));
   }
+
+  // Negative Length
+  EXPECT_EQ(ARES_EBADRESP, ares_parse_ns_reply(data.data(), -1, &host));
 }
 
 TEST_F(LibraryTest, ParseNsReplyAllocFail) {
@@ -110,7 +138,7 @@ TEST_F(LibraryTest, ParseNsReplyAllocFail) {
   for (int ii = 1; ii <= 8; ii++) {
     ClearFails();
     SetAllocFail(ii);
-    EXPECT_EQ(ARES_ENOMEM, ares_parse_ns_reply(data.data(), data.size(), &host)) << ii;
+    EXPECT_EQ(ARES_ENOMEM, ares_parse_ns_reply(data.data(), (int)data.size(), &host)) << ii;
   }
 }
 

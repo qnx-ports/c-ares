@@ -1,10 +1,21 @@
-set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
-set(CMAKE_CXX_EXTENSIONS FALSE)
+# Copyright (C) The c-ares project and its contributors
+# SPDX-License-Identifier: MIT
 
-enable_language(CXX)
+# Get rid of: warning C4530: C++ exception handler used, but unwind semantics are not enabled. Specify /EHsc
+IF (MSVC)
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc")
+ENDIF ()
 
 find_package(Threads)
+find_package(GTest REQUIRED)
+
+IF (CMAKE_VERSION VERSION_LESS "3.23.0")
+  Message("GoogleTest found, cmake version too old to verify GMock, look for errors...")
+ELSE ()
+  IF (NOT TARGET GTest::gmock)
+    Message(FATAL_ERROR "GoogleTest found but the GMock component was not found")
+  ENDIF()
+ENDIF()
 
 # create target to access and use internal cares library
 add_library(caresinternal INTERFACE)
@@ -12,10 +23,11 @@ target_compile_definitions(caresinternal INTERFACE HAVE_CONFIG_H=1)
 
 target_include_directories(caresinternal
    INTERFACE "${PROJECT_BINARY_DIR}"
+             "${PROJECT_BINARY_DIR}/src/lib"
              "${PROJECT_SOURCE_DIR}"
              "${PROJECT_SOURCE_DIR}/src/lib"
-             "${CARES_TOPLEVEL_DIR}/include"
-             "${CMAKE_INSTALL_INCLUDEDIR}"
+             "${PROJECT_SOURCE_DIR}/src/lib/include"
+             "${PROJECT_SOURCE_DIR}/include"
 )
 
 IF (CARES_STATIC)
@@ -24,39 +36,59 @@ ELSE ()
   target_link_libraries(caresinternal INTERFACE ${PROJECT_NAME}::cares)
 ENDIF ()
 
-# Google Test and Mock
-set(GMOCK_DIR gmock-1.11.0)
-add_library(gmock STATIC
-  ${GMOCK_DIR}/gmock-gtest-all.cc
-  ${GMOCK_DIR}/gmock/gmock.h
-  ${GMOCK_DIR}/gtest/gtest.h
-)
-target_include_directories(gmock PUBLIC SYSTEM ${GMOCK_DIR})
-target_link_libraries(gmock PRIVATE ${CMAKE_THREAD_LIBS_INIT})
-
-# test targets
-
 transform_makefile_inc("Makefile.inc" "${CMAKE_CURRENT_BINARY_DIR}/Makefile.inc.cmake")
 include(${CMAKE_CURRENT_BINARY_DIR}/Makefile.inc.cmake)
 
-configure_file(${CARES_TOPLEVEL_DIR}/src/lib/ares_config.h.cmake config.h)
-
 add_executable(arestest ${TESTSOURCES} ${TESTHEADERS})
 target_include_directories(arestest PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
-target_link_libraries(arestest PRIVATE caresinternal gmock)
+IF (CMAKE_VERSION VERSION_LESS "3.23.0")
+  FIND_LIBRARY(LIBGMOCK NAMES gmock PATHS ${GTEST_ROOT} PATH_SUFFIXES lib)
+  IF (LIBGMOCK-NOTFOUND)
+    MESSAGE(FATAL_ERROR "Could not find Gmock")
+  ENDIF ()
+  target_link_libraries(arestest PRIVATE caresinternal GTest::GTest ${LIBGMOCK})
+ELSE ()
+  target_link_libraries(arestest PRIVATE caresinternal GTest::gmock)
+ENDIF()
+target_compile_definitions(arestest PRIVATE CARES_NO_DEPRECATED)
 
 IF (CARES_BUILD_CONTAINER_TESTS)
   target_compile_definitions(arestest PRIVATE HAVE_USER_NAMESPACE HAVE_UTS_NAMESPACE)
 ENDIF ()
+# Avoid "fatal error C1041: cannot open program database" due to multiple
+# targets trying to use the same PDB.  /FS does NOT resolve this issue.
+set_target_properties(arestest PROPERTIES COMPILE_PDB_NAME arestest.pdb)
 
 add_executable(aresfuzz ${FUZZSOURCES})
+target_compile_definitions(aresfuzz PRIVATE CARES_NO_DEPRECATED)
 target_link_libraries(aresfuzz PRIVATE caresinternal)
+# Avoid "fatal error C1041: cannot open program database" due to multiple
+# targets trying to use the same PDB.  /FS does NOT resolve this issue.
+set_target_properties(aresfuzz PROPERTIES COMPILE_PDB_NAME aresfuzz.pdb)
 
 add_executable(aresfuzzname ${FUZZNAMESOURCES})
+target_compile_definitions(aresfuzzname PRIVATE CARES_NO_DEPRECATED)
 target_link_libraries(aresfuzzname PRIVATE caresinternal)
+# Avoid "fatal error C1041: cannot open program database" due to multiple
+# targets trying to use the same PDB.  /FS does NOT resolve this issue.
+set_target_properties(aresfuzzname PROPERTIES COMPILE_PDB_NAME aresfuzzname.pdb)
 
 add_executable(dnsdump ${DUMPSOURCES})
+target_compile_definitions(dnsdump PRIVATE CARES_NO_DEPRECATED)
 target_link_libraries(dnsdump PRIVATE caresinternal)
+# Avoid "fatal error C1041: cannot open program database" due to multiple
+# targets trying to use the same PDB.  /FS does NOT resolve this issue.
+set_target_properties(dnsdump PROPERTIES COMPILE_PDB_NAME dnsdump.pdb)
+
+add_executable(ares_queryloop ${LOOPSOURCES})
+target_compile_definitions(ares_queryloop PRIVATE CARES_NO_DEPRECATED)
+target_link_libraries(ares_queryloop PRIVATE caresinternal)
+# Avoid "fatal error C1041: cannot open program database" due to multiple
+# targets trying to use the same PDB.  /FS does NOT resolve this issue.
+set_target_properties(ares_queryloop PROPERTIES COMPILE_PDB_NAME ares_queryloop.pdb)
+
+
+
 
 # register tests
 

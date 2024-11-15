@@ -1,3 +1,28 @@
+/* MIT License
+ *
+ * Copyright (c) The c-ares project and its contributors
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice (including the next
+ * paragraph) shall be included in all copies or substantial portions of the
+ * Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ * SPDX-License-Identifier: MIT
+ */
 #include "ares-test.h"
 
 #ifdef HAVE_CONTAINER
@@ -38,7 +63,7 @@ int EnterContainer(void *data) {
   // Ensure we are apparently root before continuing.
   int count = 10;
   while (getuid() != 0 && count > 0) {
-    usleep(100000);
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
     count--;
   }
   if (getuid() != 0) {
@@ -130,8 +155,8 @@ int RunInContainer(ContainerFilesystem* fs, const std::string& hostname,
   std::stringstream contentss;
   contentss << "0 " << getuid() << " 1" << std::endl;
   std::string content = contentss.str();
-  int rc = write(fd, content.c_str(), content.size());
-  if (rc != (int)content.size()) {
+  ssize_t rc = write(fd, content.c_str(), content.size());
+  if (rc != (ssize_t)content.size()) {
     std::cerr << "Failed to write uid map to '" << mapfile << "'" << std::endl;
   }
   close(fd);
@@ -156,8 +181,13 @@ ContainerFilesystem::ContainerFilesystem(NameContentList files, const std::strin
   dirs_.push_front(rootdir_);
   for (const auto& nc : files) {
     std::string fullpath = rootdir_ + nc.first;
-    int idx = fullpath.rfind('/');
-    std::string dir = fullpath.substr(0, idx);
+    size_t idx = fullpath.rfind('/');
+    std::string dir;
+    if (idx != SIZE_MAX) {
+      dir = fullpath.substr(0, idx);
+    } else {
+      dir = fullpath;
+    }
     EnsureDirExists(dir);
     files_.push_back(std::unique_ptr<TransientFile>(
         new TransientFile(fullpath, nc.second)));
@@ -184,7 +214,7 @@ void ContainerFilesystem::EnsureDirExists(const std::string& dir) {
     return;
   }
   size_t idx = dir.rfind('/');
-  if (idx != std::string::npos) {
+  if (idx != SIZE_MAX) {
     std::string prevdir = dir.substr(0, idx);
     EnsureDirExists(prevdir);
   }

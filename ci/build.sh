@@ -1,5 +1,7 @@
 #!/bin/sh
-set -e
+# Copyright (C) The c-ares project and its contributors
+# SPDX-License-Identifier: MIT
+set -e -x
 
 OS=""
 if [ "$TRAVIS_OS_NAME" != "" ]; then
@@ -13,8 +15,9 @@ if [ "$DIST" = "iOS" ] ; then
    SYSROOT="${XCODE_PATH}/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/"
 fi
 
-if [ "$BUILD_TYPE" != "cmake" -a "$BUILD_TYPE" != "valgrind" ]; then
+if [ "$BUILD_TYPE" = "autotools" -o "$BUILD_TYPE" = "coverage" ]; then
     autoreconf -fi
+    rm -rf atoolsbld
     mkdir atoolsbld
     cd atoolsbld
     if [ "$DIST" = "iOS" ] ; then
@@ -22,15 +25,23 @@ if [ "$BUILD_TYPE" != "cmake" -a "$BUILD_TYPE" != "valgrind" ]; then
         export CXXFLAGS="${CXXFLAGS} -isysroot ${SYSROOT}"
         export LDFLAGS="${LDFLAGS} -isysroot ${SYSROOT}"
     fi
-    $SCAN_WRAP ../configure --disable-symbol-hiding --enable-expose-statics --enable-maintainer-mode --enable-debug $CONFIG_OPTS
+    export CFLAGS="${CFLAGS} -O0 -g"
+    export CXXFLAGS="${CXXFLAGS} -O0 -g"
+    if [ "$DIST" != "Windows" ] ; then
+        CONFIG_OPTS="${CONFIG_OPTS} --disable-symbol-hiding"
+    fi
+    $SCAN_WRAP ../configure --enable-maintainer-mode $CONFIG_OPTS
     $SCAN_WRAP make
+    cd ..
 else
-    # Use cmake for valgrind to prevent libtool script wrapping of tests that interfere with valgrind
+    # Use cmake for everything else
+    rm -rf cmakebld
     mkdir cmakebld
     cd cmakebld
     if [ "$DIST" = "iOS" ] ; then
         CMAKE_FLAGS="${CMAKE_FLAGS} -DCMAKE_OSX_SYSROOT=${SYSROOT}"
     fi
-    cmake ${CMAKE_FLAGS} ..
-    make
+    $SCAN_WRAP cmake ${CMAKE_FLAGS} ${CMAKE_TEST_FLAGS} ..
+    $SCAN_WRAP cmake --build .
+    cd ..
 fi

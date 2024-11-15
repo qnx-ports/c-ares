@@ -1,3 +1,28 @@
+/* MIT License
+ *
+ * Copyright (c) The c-ares project and its contributors
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice (including the next
+ * paragraph) shall be included in all copies or substantial portions of the
+ * Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ * SPDX-License-Identifier: MIT
+ */
 #include "ares-test.h"
 #include "dns-proto.h"
 
@@ -17,7 +42,7 @@ TEST_F(LibraryTest, ParseRootName) {
   struct hostent *host = nullptr;
   struct ares_addrttl info[2];
   int count = 2;
-  EXPECT_EQ(ARES_SUCCESS, ares_parse_a_reply(data.data(), data.size(),
+  EXPECT_EQ(ARES_SUCCESS, ares_parse_a_reply(data.data(), (int)data.size(),
                                              &host, info, &count));
   EXPECT_EQ(1, count);
   std::stringstream ss;
@@ -51,7 +76,7 @@ TEST_F(LibraryTest, ParseIndirectRootName) {
   struct hostent *host = nullptr;
   struct ares_addrttl info[2];
   int count = 2;
-  EXPECT_EQ(ARES_SUCCESS, ares_parse_a_reply(data.data(), data.size(),
+  EXPECT_EQ(ARES_SUCCESS, ares_parse_a_reply(data.data(), (int)data.size(),
                                              &host, info, &count));
   EXPECT_EQ(1, count);
   std::stringstream ss;
@@ -137,7 +162,7 @@ TEST_F(LibraryTest, ParsePartialCompressedName) {
   struct hostent *host = nullptr;
   struct ares_addrttl info[2];
   int count = 2;
-  EXPECT_EQ(ARES_SUCCESS, ares_parse_a_reply(data.data(), data.size(),
+  EXPECT_EQ(ARES_SUCCESS, ares_parse_a_reply(data.data(), (int)data.size(),
                                              &host, info, &count));
   ASSERT_NE(nullptr, host);
   std::stringstream ss;
@@ -173,7 +198,7 @@ TEST_F(LibraryTest, ParseFullyCompressedName) {
   struct hostent *host = nullptr;
   struct ares_addrttl info[2];
   int count = 2;
-  EXPECT_EQ(ARES_SUCCESS, ares_parse_a_reply(data.data(), data.size(),
+  EXPECT_EQ(ARES_SUCCESS, ares_parse_a_reply(data.data(), (int)data.size(),
                                              &host, info, &count));
   ASSERT_NE(nullptr, host);
   std::stringstream ss;
@@ -182,41 +207,6 @@ TEST_F(LibraryTest, ParseFullyCompressedName) {
   ares_free_hostent(host);
 }
 
-TEST_F(LibraryTest, ParseFullyCompressedName2) {
-  std::vector<byte> data = {
-    0x12, 0x34,  // qid
-    0x84, // response + query + AA + not-TC + not-RD
-    0x00, // not-RA + not-Z + not-AD + not-CD + rc=NoError
-    0x00, 0x01,  // num questions
-    0x00, 0x01,  // num answer RRs
-    0x00, 0x00,  // num authority RRs
-    0x00, 0x00,  // num additional RRs
-    // Question
-    0xC0, 0x12,  // pointer to later in message
-    0x00, 0x01,  // type A
-    0x00, 0x01,  // class IN
-    // Answer 1
-    0x03, 'w', 'w', 'w',
-    0x07, 'e', 'x', 'a', 'm', 'p', 'l', 'e',
-    0x03, 'c', 'o', 'm',
-    0x00,
-    0x00, 0x01,  // RR type
-    0x00, 0x01,  // class IN
-    0x01, 0x02, 0x03, 0x04, // TTL
-    0x00, 0x04,  // rdata length
-    0x02, 0x03, 0x04, 0x05,
-  };
-  struct hostent *host = nullptr;
-  struct ares_addrttl info[2];
-  int count = 2;
-  EXPECT_EQ(ARES_SUCCESS, ares_parse_a_reply(data.data(), data.size(),
-                                             &host, info, &count));
-  ASSERT_NE(nullptr, host);
-  std::stringstream ss;
-  ss << HostEnt(host);
-  EXPECT_EQ("{'www.example.com' aliases=[] addrs=[2.3.4.5]}", ss.str());
-  ares_free_hostent(host);
-}
 
 }  // namespace test
 }  // namespace ares
