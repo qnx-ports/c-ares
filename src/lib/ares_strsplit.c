@@ -92,3 +92,8 @@ char **ares__strsplit(const char *in, const char *delms, size_t *num_elm) {
   *num_elm = count;
   return table;
 }
+
+#if defined(__QNXNTO__) && defined(__USESRCVERSION)
+#include <sys/srcversion.h>
+__SRCVERSION("$URL: http://f27svn.qnx.com/svn/repos/osr/trunk/cares/dist/src/lib/ares_strsplit.c $ $Rev: 4177 $")
+#endif

@@ -195,3 +195,8 @@ int ares_create_query(const char *name, int dnsclass, int type,
 
   return ARES_SUCCESS;
 }
+
+#if defined(__QNXNTO__) && defined(__USESRCVERSION)
+#include <sys/srcversion.h>
+__SRCVERSION("$URL: http://f27svn.qnx.com/svn/repos/osr/trunk/cares/dist/src/lib/ares_create_query.c $ $Rev: 4177 $")
+#endif

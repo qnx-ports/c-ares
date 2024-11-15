@@ -11,7 +11,7 @@ INCLUDE (CheckLibraryExists)
 PROJECT (c-ares LANGUAGES C VERSION "1.19.1" )
 
 # Set this version before release
-SET (CARES_VERSION "${PROJECT_VERSION}")
+SET (CARES_VERSION "1.19.1")
 
 INCLUDE (GNUInstallDirs) # include this *AFTER* PROJECT(), otherwise paths are wrong.
 

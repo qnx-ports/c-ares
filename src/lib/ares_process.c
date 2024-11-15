@@ -1040,7 +1040,11 @@ static int configure_socket(ares_socket_t s, int family, ares_channel channel)
 #ifdef SO_BINDTODEVICE
   if (channel->local_dev_name[0]) {
     if (setsockopt(s, SOL_SOCKET, SO_BINDTODEVICE,
+#ifndef __QNXNTO__
                    channel->local_dev_name, sizeof(channel->local_dev_name))) {
+#else
+                   channel->local_dev_name, strlen(channel->local_dev_name) + 1)) {
+#endif
       /* Only root can do this, and usually not fatal if it doesn't work, so */
       /* just continue on. */
     }
@@ -1585,3 +1589,8 @@ void ares__close_socket(ares_channel channel, ares_socket_t s)
   else
     sclose(s);
 }
+
+#if defined(__QNXNTO__) && defined(__USESRCVERSION)
+#include <sys/srcversion.h>
+__SRCVERSION("$URL: http://f27svn.qnx.com/svn/repos/osr/trunk/cares/dist/src/lib/ares_process.c $ $Rev: 4177 $")
+#endif

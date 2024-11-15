@@ -64,3 +64,7 @@ int ares_strncasecmp(const char *a, const char *b, size_t n)
 }
 #endif
 
+#if defined(__QNXNTO__) && defined(__USESRCVERSION)
+#include <sys/srcversion.h>
+__SRCVERSION("$URL: http://f27svn.qnx.com/svn/repos/osr/trunk/cares/dist/src/lib/ares_strcasecmp.c $ $Rev: 2429 $")
+#endif

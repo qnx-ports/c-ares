@@ -166,3 +166,8 @@ ares_parse_srv_reply (const unsigned char *abuf, int alen,
 
   return ARES_SUCCESS;
 }
+
+#if defined(__QNXNTO__) && defined(__USESRCVERSION)
+#include <sys/srcversion.h>
+__SRCVERSION("$URL: http://f27svn.qnx.com/svn/repos/osr/trunk/cares/dist/src/lib/ares_parse_srv_reply.c $ $Rev: 4177 $")
+#endif

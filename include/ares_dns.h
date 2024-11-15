@@ -110,3 +110,12 @@
 #define DNS_RR_SET_LEN(r, v)            DNS__SET16BIT((r) + 8, v)
 
 #endif /* HEADER_CARES_DNS_H */
+
+#if defined(__QNXNTO__) && defined(__USESRCVERSION)
+#include <sys/srcversion.h>
+#ifdef __ASM__
+__SRCVERSION "$URL: http://f27svn.qnx.com/svn/repos/osr/trunk/cares/dist/include/ares_dns.h $ $Rev: 2429 $"
+#else
+__SRCVERSION("$URL: http://f27svn.qnx.com/svn/repos/osr/trunk/cares/dist/include/ares_dns.h $ $Rev: 2429 $")
+#endif
+#endif

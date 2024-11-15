@@ -77,3 +77,7 @@ ares_ssize_t ares_writev(ares_socket_t s, const struct iovec *iov, int iovcnt)
 }
 #endif
 
+#if defined(__QNXNTO__) && defined(__USESRCVERSION)
+#include <sys/srcversion.h>
+__SRCVERSION("$URL: http://f27svn.qnx.com/svn/repos/osr/trunk/cares/dist/src/lib/ares_writev.c $ $Rev: 2429 $")
+#endif

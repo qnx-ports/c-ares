@@ -144,3 +144,8 @@ static void qcallback(void *arg, int status, int timeouts, unsigned char *abuf, 
     }
   ares_free(qquery);
 }
+
+#if defined(__QNXNTO__) && defined(__USESRCVERSION)
+#include <sys/srcversion.h>
+__SRCVERSION("$URL: http://f27svn.qnx.com/svn/repos/osr/trunk/cares/dist/src/lib/ares_query.c $ $Rev: 4177 $")
+#endif

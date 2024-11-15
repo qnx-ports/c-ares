@@ -109,3 +109,7 @@ long ares__tvdiff(struct timeval newer, struct timeval older)
 }
 #endif
 
+#if defined(__QNXNTO__) && defined(__USESRCVERSION)
+#include <sys/srcversion.h>
+__SRCVERSION("$URL: http://f27svn.qnx.com/svn/repos/osr/trunk/cares/dist/src/lib/ares__timeval.c $ $Rev: 2429 $")
+#endif

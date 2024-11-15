@@ -127,3 +127,8 @@ void ares_send(ares_channel channel, const unsigned char *qbuf, int qlen,
   now = ares__tvnow();
   ares__send_query(channel, query, &now);
 }
+
+#if defined(__QNXNTO__) && defined(__USESRCVERSION)
+#include <sys/srcversion.h>
+__SRCVERSION("$URL: http://f27svn.qnx.com/svn/repos/osr/trunk/cares/dist/src/lib/ares_send.c $ $Rev: 4177 $")
+#endif

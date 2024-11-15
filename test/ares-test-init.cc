@@ -708,3 +708,8 @@ CONTAINED_TEST_F(LibraryTest, ContainerEmptyInit,
 
 }  // namespace test
 }  // namespace ares
+
+#if defined(__QNXNTO__) && defined(__USESRCVERSION)
+#include <sys/srcversion.h>
+__SRCVERSION("$URL: http://f27svn.qnx.com/svn/repos/osr/trunk/cares/dist/test/ares-test-init.cc $ $Rev: 4177 $")
+#endif

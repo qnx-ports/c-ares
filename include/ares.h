@@ -762,3 +762,12 @@ CARES_EXTERN int ares_inet_pton(int af, const char *src, void *dst);
 #endif
 
 #endif /* ARES__H */
+
+#if defined(__QNXNTO__) && defined(__USESRCVERSION)
+#include <sys/srcversion.h>
+#ifdef __ASM__
+__SRCVERSION "$URL: http://f27svn.qnx.com/svn/repos/osr/trunk/cares/dist/include/ares.h $ $Rev: 4177 $"
+#else
+__SRCVERSION("$URL: http://f27svn.qnx.com/svn/repos/osr/trunk/cares/dist/include/ares.h $ $Rev: 4177 $")
+#endif
+#endif

@@ -40,3 +40,8 @@ char *ares_strdup(const char *s1)
   }
   return (char *)NULL;
 }
+
+#if defined(__QNXNTO__) && defined(__USESRCVERSION)
+#include <sys/srcversion.h>
+__SRCVERSION("$URL: http://f27svn.qnx.com/svn/repos/osr/trunk/cares/dist/src/lib/ares_strdup.c $ $Rev: 4177 $")
+#endif

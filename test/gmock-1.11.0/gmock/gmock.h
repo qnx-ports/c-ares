@@ -11645,3 +11645,12 @@ GTEST_API_ void InitGoogleMock();
 }  // namespace testing
 
 #endif  // GOOGLEMOCK_INCLUDE_GMOCK_GMOCK_H_
+
+#if defined(__QNXNTO__) && defined(__USESRCVERSION)
+#include <sys/srcversion.h>
+#ifdef __ASM__
+__SRCVERSION "$URL: http://f27svn.qnx.com/svn/repos/osr/trunk/cares/dist/test/gmock-1.11.0/gmock/gmock.h $ $Rev: 4177 $"
+#else
+__SRCVERSION("$URL: http://f27svn.qnx.com/svn/repos/osr/trunk/cares/dist/test/gmock-1.11.0/gmock/gmock.h $ $Rev: 4177 $")
+#endif
+#endif

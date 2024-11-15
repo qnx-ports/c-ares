@@ -59,3 +59,8 @@ void ares__close_sockets(ares_channel channel, struct server_state *server)
       server->udp_socket = ARES_SOCKET_BAD;
     }
 }
+
+#if defined(__QNXNTO__) && defined(__USESRCVERSION)
+#include <sys/srcversion.h>
+__SRCVERSION("$URL: http://f27svn.qnx.com/svn/repos/osr/trunk/cares/dist/src/lib/ares__close_sockets.c $ $Rev: 2429 $")
+#endif

@@ -23,3 +23,12 @@ int ares_inet_net_pton(int af, const char *src, void *dst, size_t size);
 #endif
 
 #endif /* HEADER_CARES_INET_NET_PTON_H */
+
+#if defined(__QNXNTO__) && defined(__USESRCVERSION)
+#include <sys/srcversion.h>
+#ifdef __ASM__
+__SRCVERSION "$URL: http://f27svn.qnx.com/svn/repos/osr/trunk/cares/dist/src/lib/ares_inet_net_pton.h $ $Rev: 2429 $"
+#else
+__SRCVERSION("$URL: http://f27svn.qnx.com/svn/repos/osr/trunk/cares/dist/src/lib/ares_inet_net_pton.h $ $Rev: 2429 $")
+#endif
+#endif

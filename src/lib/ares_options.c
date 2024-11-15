@@ -188,6 +188,10 @@ int ares_set_servers(ares_channel channel,
       /* Initialize servers state remaining data */
       ares__init_servers_state(channel);
     }
+#ifdef __QNXNTO__
+    /* Setting the nameservers via this API is an infinite setting */
+    channel->max_cache_time_in_nsec = RES_INFINITE_CACHE_TIME;
+#endif
 
   return ARES_SUCCESS;
 }
@@ -240,6 +244,11 @@ int ares_set_servers_ports(ares_channel channel,
       /* Initialize servers state remaining data */
       ares__init_servers_state(channel);
     }
+
+#ifdef __QNXNTO__
+    /* Setting the nameservers via this API is an infinite setting */
+    channel->max_cache_time_in_nsec = RES_INFINITE_CACHE_TIME;
+#endif
 
   return ARES_SUCCESS;
 }
@@ -404,3 +413,7 @@ int ares_set_servers_ports_csv(ares_channel channel,
   return set_servers_csv(channel, _csv, TRUE);
 }
 
+#if defined(__QNXNTO__) && defined(__USESRCVERSION)
+#include <sys/srcversion.h>
+__SRCVERSION("$URL: http://f27svn.qnx.com/svn/repos/osr/trunk/cares/dist/src/lib/ares_options.c $ $Rev: 2429 $")
+#endif

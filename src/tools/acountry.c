@@ -653,3 +653,8 @@ static void print_help_info_acountry(void) {
     "  v : Be more verbose. Print extra information.\n\n");
     exit(0);
 }
+
+#if defined(__QNXNTO__) && defined(__USESRCVERSION)
+#include <sys/srcversion.h>
+__SRCVERSION("$URL: http://f27svn.qnx.com/svn/repos/osr/trunk/cares/dist/src/tools/acountry.c $ $Rev: 4177 $")
+#endif

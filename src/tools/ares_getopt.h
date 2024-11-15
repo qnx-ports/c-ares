@@ -51,3 +51,12 @@ extern int opterr;
 extern int optopt;
 
 #endif /* ARES_GETOPT_H */
+
+#if defined(__QNXNTO__) && defined(__USESRCVERSION)
+#include <sys/srcversion.h>
+#ifdef __ASM__
+__SRCVERSION "$URL: http://f27svn.qnx.com/svn/repos/osr/trunk/cares/dist/src/tools/ares_getopt.h $ $Rev: 2429 $"
+#else
+__SRCVERSION("$URL: http://f27svn.qnx.com/svn/repos/osr/trunk/cares/dist/src/tools/ares_getopt.h $ $Rev: 2429 $")
+#endif
+#endif

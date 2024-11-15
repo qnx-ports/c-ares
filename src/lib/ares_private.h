@@ -37,7 +37,11 @@
 #define HAVE_WRITEV 1
 #endif
 
+#ifndef __QNXNTO__
 #define DEFAULT_TIMEOUT         5000 /* milliseconds */
+#else
+#define DEFAULT_TIMEOUT         3000 /* milliseconds */
+#endif
 #define DEFAULT_TRIES           4
 #ifndef INADDR_NONE
 #define INADDR_NONE 0xffffffff
@@ -325,6 +329,13 @@ struct ares_channeldata {
   ares_sock_create_callback sock_create_cb;
   void *sock_create_cb_data;
 
+#ifdef __QNXNTO__
+	struct timespec res_conf_time;
+	uint64_t max_cache_time_in_nsec; /* 0 means do not cache (although (options & RES_INIT) == 0 in the same circumstances, RES_INFINITE_CACHE_TIME means never expire the cache (infinite) */
+	char * conf_domain; /*%< the last read value for _CS_DOMAIN -- used for caching */
+	char * conf_resolv; /*%< the last read value for _CS_RESOLVE -- used for caching */
+#endif
+
   ares_sock_config_callback sock_config_cb;
   void *sock_config_cb_data;
 
@@ -417,6 +428,12 @@ int ares__addrinfo_localhost(const char *name, unsigned short port,
 long ares__tvdiff(struct timeval t1, struct timeval t2);
 #endif
 
+#ifdef __QNXNTO__
+#define RES_INFINITE_CACHE_TIME ((uint64_t)-1)
+void ares__check_for_config_reload(ares_channel channel);
+void ares__check_for_config_reload_force(ares_channel channel, int force);
+#endif
+
 ares_socket_t ares__open_socket(ares_channel channel,
                                 int af, int type, int protocol);
 void ares__close_socket(ares_channel, ares_socket_t);
@@ -435,3 +452,12 @@ int ares__connect_socket(ares_channel channel,
   } WHILE_FALSE
 
 #endif /* __ARES_PRIVATE_H */
+
+#if defined(__QNXNTO__) && defined(__USESRCVERSION)
+#include <sys/srcversion.h>
+#ifdef __ASM__
+__SRCVERSION "$URL: http://f27svn.qnx.com/svn/repos/osr/trunk/cares/dist/src/lib/ares_private.h $ $Rev: 4177 $"
+#else
+__SRCVERSION("$URL: http://f27svn.qnx.com/svn/repos/osr/trunk/cares/dist/src/lib/ares_private.h $ $Rev: 4177 $")
+#endif
+#endif

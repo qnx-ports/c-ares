@@ -41,3 +41,8 @@ int main(int argc, char* argv[]) {
 
   return rc;
 }
+
+#if defined(__QNXNTO__) && defined(__USESRCVERSION)
+#include <sys/srcversion.h>
+__SRCVERSION("$URL: http://f27svn.qnx.com/svn/repos/osr/trunk/cares/dist/test/ares-test-main.cc $ $Rev: 822 $")
+#endif

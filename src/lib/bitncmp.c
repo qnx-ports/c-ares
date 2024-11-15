@@ -57,3 +57,8 @@ int ares__bitncmp(const void *l, const void *r, int n)
   return (0);
 }
 #endif
+
+#if defined(__QNXNTO__) && defined(__USESRCVERSION)
+#include <sys/srcversion.h>
+__SRCVERSION("$URL: http://f27svn.qnx.com/svn/repos/osr/trunk/cares/dist/src/lib/bitncmp.c $ $Rev: 2429 $")
+#endif

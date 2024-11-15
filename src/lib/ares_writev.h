@@ -34,3 +34,12 @@ extern ares_ssize_t ares_writev(ares_socket_t s, const struct iovec *iov, int io
 #endif
 
 #endif /* HEADER_CARES_WRITEV_H */
+
+#if defined(__QNXNTO__) && defined(__USESRCVERSION)
+#include <sys/srcversion.h>
+#ifdef __ASM__
+__SRCVERSION "$URL: http://f27svn.qnx.com/svn/repos/osr/trunk/cares/dist/src/lib/ares_writev.h $ $Rev: 2429 $"
+#else
+__SRCVERSION("$URL: http://f27svn.qnx.com/svn/repos/osr/trunk/cares/dist/src/lib/ares_writev.h $ $Rev: 2429 $")
+#endif
+#endif

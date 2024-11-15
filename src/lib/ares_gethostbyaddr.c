@@ -60,6 +60,10 @@ void ares_gethostbyaddr(ares_channel channel, const void *addr, int addrlen,
 {
   struct addr_query *aquery;
 
+#ifdef __QNXNTO__
+  ares__check_for_config_reload(channel);
+#endif
+
   if (family != AF_INET && family != AF_INET6)
     {
       callback(arg, ARES_ENOTIMP, 0, NULL);
@@ -285,3 +289,8 @@ static void ptr_rr_name(char *name, const struct ares_addr *addr)
                 bytes[1]&0xf, bytes[1] >> 4, bytes[0]&0xf, bytes[0] >> 4);
     }
 }
+
+#if defined(__QNXNTO__) && defined(__USESRCVERSION)
+#include <sys/srcversion.h>
+__SRCVERSION("$URL: http://f27svn.qnx.com/svn/repos/osr/trunk/cares/dist/src/lib/ares_gethostbyaddr.c $ $Rev: 4177 $")
+#endif

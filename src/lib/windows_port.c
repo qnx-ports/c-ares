@@ -20,3 +20,8 @@ WINAPI DllMain (HINSTANCE hnd, DWORD reason, LPVOID reserved)
 #endif
 
 #endif /* WIN32 builds only */
+
+#if defined(__QNXNTO__) && defined(__USESRCVERSION)
+#include <sys/srcversion.h>
+__SRCVERSION("$URL: http://f27svn.qnx.com/svn/repos/osr/trunk/cares/dist/src/lib/windows_port.c $ $Rev: 2429 $")
+#endif

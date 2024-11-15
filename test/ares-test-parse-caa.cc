@@ -111,3 +111,8 @@ TEST_F(LibraryTest, ParseCaaEmptyReply) {
 
 }  // namespace test
 }  // namespace ares
+
+#if defined(__QNXNTO__) && defined(__USESRCVERSION)
+#include <sys/srcversion.h>
+__SRCVERSION("$URL: http://f27svn.qnx.com/svn/repos/osr/trunk/cares/dist/test/ares-test-parse-caa.cc $ $Rev: 2429 $")
+#endif

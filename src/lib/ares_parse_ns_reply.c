@@ -175,3 +175,8 @@ int ares_parse_ns_reply( const unsigned char* abuf, int alen,
   ares_free( hostname );
   return status;
 }
+
+#if defined(__QNXNTO__) && defined(__USESRCVERSION)
+#include <sys/srcversion.h>
+__SRCVERSION("$URL: http://f27svn.qnx.com/svn/repos/osr/trunk/cares/dist/src/lib/ares_parse_ns_reply.c $ $Rev: 4177 $")
+#endif

@@ -277,3 +277,7 @@ unsigned short ares__generate_new_id(ares_rand_state *state)
   return r;
 }
 
+#if defined(__QNXNTO__) && defined(__USESRCVERSION)
+#include <sys/srcversion.h>
+__SRCVERSION("$URL: http://f27svn.qnx.com/svn/repos/osr/trunk/cares/dist/src/lib/ares_rand.c $ $Rev: 4177 $")
+#endif

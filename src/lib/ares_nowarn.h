@@ -59,3 +59,12 @@ unsigned short aresx_ntohs(unsigned short usnum);
 #endif /* __INTEL_COMPILER && __unix__ */
 
 #endif /* HEADER_CARES_NOWARN_H */
+
+#if defined(__QNXNTO__) && defined(__USESRCVERSION)
+#include <sys/srcversion.h>
+#ifdef __ASM__
+__SRCVERSION "$URL: http://f27svn.qnx.com/svn/repos/osr/trunk/cares/dist/src/lib/ares_nowarn.h $ $Rev: 2429 $"
+#else
+__SRCVERSION("$URL: http://f27svn.qnx.com/svn/repos/osr/trunk/cares/dist/src/lib/ares_nowarn.h $ $Rev: 2429 $")
+#endif
+#endif

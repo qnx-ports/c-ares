@@ -52,6 +52,14 @@ void ares_destroy(ares_channel channel)
   if (!channel)
     return;
 
+#ifdef __QNXNTO__
+  free(channel->conf_domain);
+  channel->conf_domain = NULL;
+
+  free(channel->conf_resolv);
+  channel->conf_resolv = NULL;
+#endif
+
   list_head = &(channel->all_queries);
   for (list_node = list_head->next; list_node != list_head; )
     {
@@ -119,3 +127,8 @@ void ares__destroy_servers_state(ares_channel channel)
     }
   channel->nservers = -1;
 }
+
+#if defined(__QNXNTO__) && defined(__USESRCVERSION)
+#include <sys/srcversion.h>
+__SRCVERSION("$URL: http://f27svn.qnx.com/svn/repos/osr/trunk/cares/dist/src/lib/ares_destroy.c $ $Rev: 4177 $")
+#endif
