@@ -138,7 +138,4 @@ const char   *ares__if_indextoname(unsigned int index, char *name,
 
 #endif
 
-#if defined(__QNXNTO__) && defined(__USESRCVERSION)
-#include <sys/srcversion.h>
-__SRCVERSION("$URL$ $Rev$")
-#endif
+ 

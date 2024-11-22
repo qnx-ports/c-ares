@@ -289,7 +289,4 @@ ares_bool_t ares__str_isprint(const char *str, size_t len)
   return ARES_TRUE;
 }
 
-#if defined(__QNXNTO__) && defined(__USESRCVERSION)
-#include <sys/srcversion.h>
-__SRCVERSION("$URL$ $Rev$")
-#endif
+ 

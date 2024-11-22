@@ -144,7 +144,4 @@ unsigned char ares__count_bits_u8(unsigned char x)
   return lookup[x];
 }
 
-#if defined(__QNXNTO__) && defined(__USESRCVERSION)
-#include <sys/srcversion.h>
-__SRCVERSION("$URL$ $Rev$")
-#endif
+ 

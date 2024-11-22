@@ -72,7 +72,4 @@ int ares__read_line(FILE *fp, char **buf, size_t *bufsize)
   return ARES_SUCCESS;
 }
 
-#if defined(__QNXNTO__) && defined(__USESRCVERSION)
-#include <sys/srcversion.h>
-__SRCVERSION("$URL: http://f27svn.qnx.com/svn/repos/osr/branches/8.0.0/trunk/cares/dist/src/lib/ares__read_line.c $ $Rev: 2429 $")
-#endif
+ 

@@ -235,7 +235,4 @@ enomem:
   return ARES_ENOMEM;
 }
 
-#if defined(__QNXNTO__) && defined(__USESRCVERSION)
-#include <sys/srcversion.h>
-__SRCVERSION("$URL: http://f27svn.qnx.com/svn/repos/osr/branches/8.0.0/trunk/cares/dist/src/lib/ares__addrinfo_localhost.c $ $Rev: 4177 $")
-#endif
+ 

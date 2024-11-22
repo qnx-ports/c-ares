@@ -612,7 +612,4 @@ void ares_queue_notify_empty(ares_channel_t *channel)
   ares__thread_cond_broadcast(channel->cond_empty);
 }
 
-#if defined(__QNXNTO__) && defined(__USESRCVERSION)
-#include <sys/srcversion.h>
-__SRCVERSION("$URL$ $Rev$")
-#endif
+ 

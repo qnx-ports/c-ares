@@ -160,7 +160,4 @@ typedef NTSTATUS(NTAPI *NtCreateFile_t)(
 
 #endif /* __ARES_EVENT_WIN32_H */
 
-#if defined(__QNXNTO__) && defined(__USESRCVERSION)
-#include <sys/srcversion.h>
-__SRCVERSION("$URL$ $Rev$")
-#endif
+ 

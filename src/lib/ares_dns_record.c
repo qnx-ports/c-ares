@@ -1493,7 +1493,4 @@ ares_dns_record_t *ares_dns_record_duplicate(const ares_dns_record_t *dnsrec)
   return dest;
 }
 
-#if defined(__QNXNTO__) && defined(__USESRCVERSION)
-#include <sys/srcversion.h>
-__SRCVERSION("$URL$ $Rev$")
-#endif
+ 

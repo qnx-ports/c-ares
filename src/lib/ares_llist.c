@@ -61,7 +61,4 @@ void ares__remove_from_list(struct list_node* node) {
   }
 }
 
-#if defined(__QNXNTO__) && defined(__USESRCVERSION)
-#include <sys/srcversion.h>
-__SRCVERSION("$URL: http://f27svn.qnx.com/svn/repos/osr/branches/8.0.0/trunk/cares/dist/src/lib/ares_llist.c $ $Rev: 2429 $")
-#endif
+ 

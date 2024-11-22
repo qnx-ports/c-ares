@@ -136,7 +136,4 @@ int ares_parse_txt_reply_ext(const unsigned char *abuf, int alen,
   return ares__parse_txt_reply(abuf, (size_t)alen, ARES_TRUE, (void **)txt_out);
 }
 
-#if defined(__QNXNTO__) && defined(__USESRCVERSION)
-#include <sys/srcversion.h>
-__SRCVERSION("$URL: http://f27svn.qnx.com/svn/repos/osr/branches/8.0.0/trunk/cares/dist/src/lib/ares_parse_txt_reply.c $ $Rev: 4177 $")
-#endif
+ 

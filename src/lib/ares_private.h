@@ -711,11 +711,4 @@ ares_status_t ares_event_thread_init(ares_channel_t *channel);
 
 #endif /* __ARES_PRIVATE_H */
 
-#if defined(__QNXNTO__) && defined(__USESRCVERSION)
-#include <sys/srcversion.h>
-#ifdef __ASM__
-__SRCVERSION "$URL: http://f27svn.qnx.com/svn/repos/osr/branches/8.0.0/trunk/cares/dist/src/lib/ares_private.h $ $Rev: 4177 $"
-#else
-__SRCVERSION("$URL: http://f27svn.qnx.com/svn/repos/osr/branches/8.0.0/trunk/cares/dist/src/lib/ares_private.h $ $Rev: 4177 $")
-#endif
-#endif
+ 

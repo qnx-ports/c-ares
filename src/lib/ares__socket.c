@@ -485,7 +485,4 @@ void ares_set_socket_functions(ares_channel_t                     *channel,
   channel->sock_func_cb_data = data;
 }
 
-#if defined(__QNXNTO__) && defined(__USESRCVERSION)
-#include <sys/srcversion.h>
-__SRCVERSION("$URL$ $Rev$")
-#endif
+ 

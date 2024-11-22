@@ -1271,7 +1271,4 @@ void ares__free_query(struct query *query)
   ares_free(query);
 }
 
-#if defined(__QNXNTO__) && defined(__USESRCVERSION)
-#include <sys/srcversion.h>
-__SRCVERSION("$URL: http://f27svn.qnx.com/svn/repos/osr/branches/8.0.0/trunk/cares/dist/src/lib/ares_process.c $ $Rev: 4177 $")
-#endif
+ 

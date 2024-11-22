@@ -23,11 +23,4 @@ extern char *ares_strdup(const char *s1);
 
 #endif /* HEADER_CARES_STRDUP_H */
 
-#if defined(__QNXNTO__) && defined(__USESRCVERSION)
-#include <sys/srcversion.h>
-#ifdef __ASM__
-__SRCVERSION "$URL: http://f27svn.qnx.com/svn/repos/osr/branches/8.0.0/trunk/cares/dist/src/lib/ares_strdup.h $ $Rev: 2429 $"
-#else
-__SRCVERSION("$URL: http://f27svn.qnx.com/svn/repos/osr/branches/8.0.0/trunk/cares/dist/src/lib/ares_strdup.h $ $Rev: 2429 $")
-#endif
-#endif
+ 

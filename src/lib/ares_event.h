@@ -187,7 +187,4 @@ extern const ares_event_sys_t ares_evsys_select;
 
 #endif
 
-#if defined(__QNXNTO__) && defined(__USESRCVERSION)
-#include <sys/srcversion.h>
-__SRCVERSION("$URL$ $Rev$")
-#endif
+ 

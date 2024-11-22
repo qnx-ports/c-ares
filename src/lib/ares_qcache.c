@@ -448,7 +448,4 @@ ares_status_t ares_qcache_insert(ares_channel_t       *channel,
                              now);
 }
 
-#if defined(__QNXNTO__) && defined(__USESRCVERSION)
-#include <sys/srcversion.h>
-__SRCVERSION("$URL$ $Rev$")
-#endif
+ 

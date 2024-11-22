@@ -118,7 +118,4 @@ void ares__check_cleanup_conn(const ares_channel_t     *channel,
   ares__close_connection(conn);
 }
 
-#if defined(__QNXNTO__) && defined(__USESRCVERSION)
-#include <sys/srcversion.h>
-__SRCVERSION("$URL: http://f27svn.qnx.com/svn/repos/osr/branches/8.0.0/trunk/cares/dist/src/lib/ares__close_sockets.c $ $Rev: 2429 $")
-#endif
+ 

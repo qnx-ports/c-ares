@@ -481,7 +481,4 @@ done:
 typedef int dummy_make_iso_compilers_happy;
 #endif
 
-#if defined(__QNXNTO__) && defined(__USESRCVERSION)
-#include <sys/srcversion.h>
-__SRCVERSION("$URL: http://f27svn.qnx.com/svn/repos/osr/branches/8.0.0/trunk/cares/dist/src/lib/ares_android.c $ $Rev: 2429 $")
-#endif
+ 

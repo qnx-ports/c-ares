@@ -985,7 +985,4 @@ ares_status_t ares_dns_query_reply_tostatus(ares_dns_rcode_t rcode,
   return status;
 }
 
-#if defined(__QNXNTO__) && defined(__USESRCVERSION)
-#include <sys/srcversion.h>
-__SRCVERSION("$URL$ $Rev$")
-#endif
+ 

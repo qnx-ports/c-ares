@@ -437,7 +437,4 @@ ares_bool_t ares__is_onion_domain(const char *name)
   return ARES_FALSE;
 }
 
-#if defined(__QNXNTO__) && defined(__USESRCVERSION)
-#include <sys/srcversion.h>
-__SRCVERSION("$URL: http://f27svn.qnx.com/svn/repos/osr/branches/8.0.0/trunk/cares/dist/src/lib/ares_getnameinfo.c $ $Rev: 4177 $")
-#endif
+ 

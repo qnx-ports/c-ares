@@ -87,7 +87,4 @@ int ares_getsock(const ares_channel_t *channel, ares_socket_t *socks,
   return (int)bitmap;
 }
 
-#if defined(__QNXNTO__) && defined(__USESRCVERSION)
-#include <sys/srcversion.h>
-__SRCVERSION("$URL: http://f27svn.qnx.com/svn/repos/osr/branches/8.0.0/trunk/cares/dist/src/lib/ares_getsock.c $ $Rev: 2429 $")
-#endif
+ 

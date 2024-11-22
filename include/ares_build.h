@@ -218,11 +218,4 @@ typedef CARES_TYPEOF_ARES_SSIZE_T ares_ssize_t;
 
 #endif /* __CARES_BUILD_H */
 
-#if defined(__QNXNTO__) && defined(__USESRCVERSION)
-#include <sys/srcversion.h>
-#ifdef __ASM__
-__SRCVERSION "$URL: http://f27svn.qnx.com/svn/repos/osr/branches/8.0.0/trunk/cares/dist/include/ares_build.h $ $Rev: 4177 $"
-#else
-__SRCVERSION("$URL: http://f27svn.qnx.com/svn/repos/osr/branches/8.0.0/trunk/cares/dist/include/ares_build.h $ $Rev: 4177 $")
-#endif
-#endif
+ 

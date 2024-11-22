@@ -92,7 +92,4 @@ done:
   ares__channel_unlock(channel);
 }
 
-#if defined(__QNXNTO__) && defined(__USESRCVERSION)
-#include <sys/srcversion.h>
-__SRCVERSION("$URL: http://f27svn.qnx.com/svn/repos/osr/branches/8.0.0/trunk/cares/dist/src/lib/ares_cancel.c $ $Rev: 2429 $")
-#endif
+ 
