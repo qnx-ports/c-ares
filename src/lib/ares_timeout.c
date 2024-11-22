@@ -75,9 +75,8 @@ static ares_timeval_t struct_timeval_to_ares_timeval(const struct timeval *tv)
   return atv;
 }
 
-static struct timeval *ares_timeout_int(const ares_channel_t *channel,
-                                        struct timeval *maxtv,
-                                        struct timeval *tvbuf)
+struct timeval *ares_timeout(const ares_channel_t *channel,
+                             struct timeval *maxtv, struct timeval *tvbuf)
 {
   const struct query *query;
   ares__slist_node_t *node;
@@ -123,19 +122,7 @@ static struct timeval *ares_timeout_int(const ares_channel_t *channel,
   return tvbuf;
 }
 
-struct timeval *ares_timeout(const ares_channel_t *channel,
-                             struct timeval *maxtv, struct timeval *tvbuf)
-{
-  struct timeval *rv;
-
-  if (channel == NULL || tvbuf == NULL)
-    return NULL;
-
-  ares__channel_lock(channel);
-
-  rv = ares_timeout_int(channel, maxtv, tvbuf);
-
-  ares__channel_unlock(channel);
-
-  return rv;
-}
+#if defined(__QNXNTO__) && defined(__USESRCVERSION)
+#include <sys/srcversion.h>
+__SRCVERSION("$URL: http://f27svn.qnx.com/svn/repos/osr/branches/8.0.0/trunk/cares/dist/src/lib/ares_timeout.c $ $Rev: 2429 $")
+#endif

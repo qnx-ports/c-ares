@@ -443,3 +443,8 @@ int ares_inet_pton(int af, const char *src, void *dst)
   }
   return (result > -1) ? 1 : -1;
 }
+
+#if defined(__QNXNTO__) && defined(__USESRCVERSION)
+#include <sys/srcversion.h>
+__SRCVERSION("$URL: http://f27svn.qnx.com/svn/repos/osr/branches/8.0.0/trunk/cares/dist/src/lib/inet_net_pton.c $ $Rev: 4177 $")
+#endif

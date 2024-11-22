@@ -77,3 +77,8 @@ ares_bool_t   ares__str_isprint(const char *str, size_t len);
 
 
 #endif /* __ARES_STR_H */
+
+#if defined(__QNXNTO__) && defined(__USESRCVERSION)
+#include <sys/srcversion.h>
+__SRCVERSION("$URL$ $Rev$")
+#endif

@@ -104,7 +104,7 @@ TEST_F(DefaultChannelTest, SetServersPorts) {
   server2.family = AF_INET;
   server2.addr.addr4.s_addr = htonl(0x02030405);
   server2.udp_port = 0;
-  server2.tcp_port = 0;
+  server2.tcp_port = 0;;
   EXPECT_EQ(ARES_ENODATA, ares_set_servers_ports(nullptr, &server1));
 
   EXPECT_EQ(ARES_SUCCESS, ares_set_servers_ports(channel_, &server1));
@@ -578,3 +578,8 @@ TEST_F(LibraryTest, ExpandString) {
 
 }  // namespace test
 }  // namespace ares
+
+#if defined(__QNXNTO__) && defined(__USESRCVERSION)
+#include <sys/srcversion.h>
+__SRCVERSION("$URL: http://f27svn.qnx.com/svn/repos/osr/trunk/cares/dist/test/ares-test-misc.cc $ $Rev: 4177 $")
+#endif

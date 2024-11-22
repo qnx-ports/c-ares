@@ -44,7 +44,11 @@
 #  include <sys/ioctl.h>
 #endif
 
+#ifndef __QNXNTO__
 #define DEFAULT_TIMEOUT 2000 /* milliseconds */
+#else /* !__QNXNTO__ */
+#define DEFAULT_TIMEOUT 3000 /* milliseconds */
+#endif /* __QNXNTO__ */
 #define DEFAULT_TRIES   3
 #ifndef INADDR_NONE
 #  define INADDR_NONE 0xffffffff
@@ -317,6 +321,13 @@ struct ares_channeldata {
   ares_sock_state_cb    sock_state_cb;
   void                 *sock_state_cb_data;
 
+#ifdef __QNXNTO__
+  struct		timespec res_conf_time;
+  uint64_t		max_cache_time_in_nsec; /* 0 means do not cache (although (options & RES_INIT) == 0 in the same circumstances, RES_INFINITE_CACHE_TIME means never expire the cache (infinite) */
+  char			*conf_domain; /*%< the last read value for _CS_DOMAIN -- used for caching */
+  char			*conf_resolv; /*%< the last read value for _CS_RESOLVE -- used for caching */
+#endif
+
   ares_sock_create_callback           sock_create_cb;
   void                               *sock_create_cb_data;
 
@@ -361,12 +372,6 @@ struct ares_channeldata {
    * exit. */
   ares_bool_t                         reinit_pending;
   ares__thread_t                     *reinit_thread;
-
-  /* Whether the system is up or not.  This is mainly to prevent deadlocks
-   * and access violations during the cleanup process.  Some things like
-   * system config changes might get triggered and we need a flag to make
-   * sure we don't take action. */
-  ares_bool_t                         sys_up;
 };
 
 /* Does the domain end in ".onion" or ".onion."? Case-insensitive. */
@@ -386,8 +391,7 @@ ares_bool_t   ares__timedout(const ares_timeval_t *now,
 /* Returns one of the normal ares status codes like ARES_SUCCESS */
 ares_status_t ares__send_query(struct query *query, const ares_timeval_t *now);
 ares_status_t ares__requeue_query(struct query         *query,
-                                  const ares_timeval_t *now,
-                                  ares_status_t         status);
+                                  const ares_timeval_t *now);
 
 /*! Retrieve a list of names to use for searching.  The first successful
  *  query in the list wins.  This function also uses the HOSTSALIASES file
@@ -415,10 +419,10 @@ void         *ares__dnsrec_convert_arg(ares_callback callback, void *arg);
 void ares__dnsrec_convert_cb(void *arg, ares_status_t status, size_t timeouts,
                              const ares_dns_record_t *dnsrec);
 
-void ares__close_connection(struct server_connection *conn,
-                            ares_status_t requeue_status);
+void ares__close_connection(struct server_connection *conn);
 void ares__close_sockets(struct server_state *server);
-void ares__check_cleanup_conns(const ares_channel_t *channel);
+void ares__check_cleanup_conn(const ares_channel_t     *channel,
+                              struct server_connection *conn);
 void ares__free_query(struct query *query);
 
 ares_rand_state *ares__init_rand_state(void);
@@ -460,7 +464,14 @@ typedef struct {
   ares_bool_t      rotate;
   size_t           timeout_ms;
   ares_bool_t      usevc;
+#ifdef __QNXNTO__
+  uint64_t	   max_cache_time_in_nsec;
+#endif /* __QNXNTO__ */
 } ares_sysconfig_t;
+
+#ifdef __QNXNTO__
+extern ares_sysconfig_t sysconfig;
+#endif /* __QNXNTO__ */
 
 ares_status_t ares__sysconfig_set_options(ares_sysconfig_t *sysconfig,
                                           const char       *str);
@@ -561,6 +572,12 @@ ares_status_t ares_in_addr_to_server_config_llist(const struct in_addr *servers,
 ares_status_t ares_get_server_addr(const struct server_state *server,
                                    ares__buf_t               *buf);
 
+#ifdef __QNXNTO__
+#define RES_INFINITE_CACHE_TIME ((uint64_t)-1)
+void ares__check_for_config_reload(ares_channel channel);
+void ares__check_for_config_reload_force(ares_channel channel, int force);
+#endif
+
 struct ares_hosts_entry;
 typedef struct ares_hosts_entry ares_hosts_entry_t;
 
@@ -580,26 +597,6 @@ ares_status_t ares__hosts_entry_to_addrinfo(const ares_hosts_entry_t *entry,
                                             ares_bool_t           want_cnames,
                                             struct ares_addrinfo *ai);
 
-/* Same as ares_query_dnsrec() except does not take a channel lock.  Use this
- * if a channel lock is already held */
-ares_status_t ares_query_nolock(ares_channel_t *channel, const char *name,
-                                ares_dns_class_t     dnsclass,
-                                ares_dns_rec_type_t  type,
-                                ares_callback_dnsrec callback, void *arg,
-                                unsigned short *qid);
-
-/* Same as ares_send_dnsrec() except does not take a channel lock.  Use this
- * if a channel lock is already held */
-ares_status_t ares_send_nolock(ares_channel_t          *channel,
-                               const ares_dns_record_t *dnsrec,
-                               ares_callback_dnsrec     callback,
-                               void *arg, unsigned short *qid);
-
-/* Same as ares_gethostbyaddr() except does not take a channel lock.  Use this
- * if a channel lock is already held */
-void ares_gethostbyaddr_nolock(ares_channel_t *channel, const void *addr,
-                               int addrlen, int family,
-                               ares_host_callback callback, void *arg);
 
 /*! Parse a compressed DNS name as defined in RFC1035 starting at the current
  *  offset within the buffer.
@@ -713,3 +710,12 @@ ares_status_t ares_event_thread_init(ares_channel_t *channel);
 #endif
 
 #endif /* __ARES_PRIVATE_H */
+
+#if defined(__QNXNTO__) && defined(__USESRCVERSION)
+#include <sys/srcversion.h>
+#ifdef __ASM__
+__SRCVERSION "$URL: http://f27svn.qnx.com/svn/repos/osr/branches/8.0.0/trunk/cares/dist/src/lib/ares_private.h $ $Rev: 4177 $"
+#else
+__SRCVERSION("$URL: http://f27svn.qnx.com/svn/repos/osr/branches/8.0.0/trunk/cares/dist/src/lib/ares_private.h $ $Rev: 4177 $")
+#endif
+#endif

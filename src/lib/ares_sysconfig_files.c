@@ -620,7 +620,24 @@ static ares_status_t parse_resolvconf_line(ares_sysconfig_t *sysconfig,
   } else if (strcmp(option, "options") == 0) {
     status = ares__sysconfig_set_options(sysconfig, value);
   }
-
+#ifdef __QNXNTO__
+  else if (strcmp(option, "nocache") == 0) {
+  /* we expect a second parameter, typically "on", but we
+   * don't actually look at the value currently
+   * NOTE: this is mimicking the existing behaviour in the
+   * resolve library in libsocket*/
+    sysconfig->max_cache_time_in_nsec = 1; /* Do not cache */
+    status = ARES_SUCCESS;
+  }
+  else if (strcmp(option, "maxcachetime") == 0) {
+    unsigned long v = strtoul(value, NULL, 0);
+    if (!(((0 == v)) || ((ULONG_MAX == v) && (ERANGE == errno)))) {
+      /* save after converting from milliseconds to nanoseconds */
+      sysconfig->max_cache_time_in_nsec = (uint64_t)v * (uint64_t)1000 * (uint64_t)1000;
+    }
+    status = ARES_SUCCESS;
+  }
+#endif
   return status;
 }
 
@@ -810,3 +827,8 @@ ares_status_t ares__init_sysconfig_files(const ares_channel_t *channel,
 done:
   return status;
 }
+
+#if defined(__QNXNTO__) && defined(__USESRCVERSION)
+#include <sys/srcversion.h>
+__SRCVERSION("$URL$ $Rev$")
+#endif

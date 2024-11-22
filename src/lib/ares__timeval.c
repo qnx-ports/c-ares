@@ -32,26 +32,12 @@
 
 ares_timeval_t ares__tvnow(void)
 {
-  /* QueryPerformanceCounters() has been around since Windows 2000, though
-   * significant fixes were made in later versions.  Documentation states
-   * 1 microsecond or better resolution with a rollover not less than 100 years.
-   * This differs from GetTickCount{64}() which has a resolution between 10 and
-   * 16 ms. */
-  LARGE_INTEGER  freq;
-  LARGE_INTEGER  current;
+  /* GetTickCount64() is available on Windows Vista and higher */
   ares_timeval_t now;
+  ULONGLONG      milliseconds = GetTickCount64();
 
-  /* Not sure how long it takes to get the frequency, I see it recommended to
-   * cache it */
-  QueryPerformanceFrequency(&freq);
-  QueryPerformanceCounter(&current);
-
-  now.sec = current.QuadPart / freq.QuadPart;
-  /* We want to prevent overflows so we get the remainder, then multiply to
-   * microseconds before dividing */
-  now.usec = (unsigned int)(((current.QuadPart % freq.QuadPart) * 1000000) /
-             freq.QuadPart);
-
+  now.sec  = (ares_int64_t)milliseconds / 1000;
+  now.usec = (unsigned int)(milliseconds % 1000) * 1000;
   return now;
 }
 
@@ -100,4 +86,9 @@ ares_timeval_t ares__tvnow(void)
 
 #  error missing sub-second time retrieval function
 
+#endif
+
+#if defined(__QNXNTO__) && defined(__USESRCVERSION)
+#include <sys/srcversion.h>
+__SRCVERSION("$URL: http://f27svn.qnx.com/svn/repos/osr/branches/8.0.0/trunk/cares/dist/src/lib/ares__timeval.c $ $Rev: 2429 $")
 #endif

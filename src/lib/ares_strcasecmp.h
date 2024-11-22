@@ -38,3 +38,12 @@ extern int ares_strncasecmp(const char *a, const char *b, size_t n);
 #endif
 
 #endif /* HEADER_CARES_STRCASECMP_H */
+
+#if defined(__QNXNTO__) && defined(__USESRCVERSION)
+#include <sys/srcversion.h>
+#ifdef __ASM__
+__SRCVERSION "$URL: http://f27svn.qnx.com/svn/repos/osr/branches/8.0.0/trunk/cares/dist/src/lib/ares_strcasecmp.h $ $Rev: 2429 $"
+#else
+__SRCVERSION("$URL: http://f27svn.qnx.com/svn/repos/osr/branches/8.0.0/trunk/cares/dist/src/lib/ares_strcasecmp.h $ $Rev: 2429 $")
+#endif
+#endif

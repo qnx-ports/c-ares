@@ -45,6 +45,7 @@ AM_INIT_AUTOMAKE([foreign subdir-objects 1.9.6])
 LT_INIT([win32-dll,pic,disable-fast-install,aix-soname=svr4])
 AC_LANG([C])
 AC_PROG_CC
+AC_PROG_CXX
 AM_PROG_CC_C_O
 AC_PROG_EGREP
 AC_PROG_INSTALL
@@ -113,6 +114,7 @@ AC_ARG_ENABLE(tests,
   ]
 )
 
+
 AC_ARG_ENABLE(cares-threads,
   AS_HELP_STRING([--disable-cares-threads], [Disable building of thread safety support]),
   [ CARES_THREADS=${enableval} ],
@@ -153,6 +155,8 @@ _EOF
 ])
 
 AX_CODE_COVERAGE
+AX_CHECK_USER_NAMESPACE
+AX_CHECK_UTS_NAMESPACE
 AC_SYS_LARGEFILE
 
 case $host_os in
@@ -292,7 +296,17 @@ if test "$ac_cv_native_windows" = "yes" ; then
   dnl other headers, AC_CHECK_HEADERS only allows you to specify headers that
   dnl must be included *before* the header being checked.
 
-  AC_CHECK_HEADERS([windows.h winsock2.h ws2tcpip.h iphlpapi.h netioapi.h ws2ipdef.h winternl.h ntdef.h ntstatus.h mswsock.h ],
+  AC_CHECK_HEADERS(
+    windows.h  \
+    winsock2.h \
+    ws2tcpip.h \
+    iphlpapi.h \
+    netioapi.h \
+    ws2ipdef.h \
+    winternl.h \
+    ntdef.h    \
+    ntstatus.h \
+    mswsock.h,
     [], [], [-])
 
   dnl Windows builds require linking to iphlpapi
@@ -394,10 +408,42 @@ AS_HELP_STRING([--enable-libgcc],[use libgcc when linking]),
        AC_MSG_RESULT(no)
 )
 
-dnl check for a few basic system headers we need.  It would be nice if we could
-dnl split these on separate lines, but for some reason autotools on Windows doesn't
-dnl allow this, even tried ending lines with a backslash.
-AC_CHECK_HEADERS([malloc.h memory.h AvailabilityMacros.h sys/types.h sys/time.h sys/select.h sys/socket.h sys/filio.h sys/ioctl.h sys/param.h sys/uio.h sys/random.h sys/event.h sys/epoll.h assert.h iphlpapi.h netioapi.h netdb.h netinet/in.h netinet6/in6.h netinet/tcp.h net/if.h ifaddrs.h fcntl.h errno.h socket.h strings.h stdbool.h time.h poll.h limits.h arpa/nameser.h arpa/nameser_compat.h arpa/inet.h sys/system_properties.h ],
+dnl check for a few basic system headers we need
+AC_CHECK_HEADERS(
+       malloc.h \
+       memory.h \
+       AvailabilityMacros.h \
+       sys/types.h \
+       sys/time.h \
+       sys/select.h \
+       sys/socket.h \
+       sys/filio.h \
+       sys/ioctl.h \
+       sys/param.h \
+       sys/uio.h \
+       sys/random.h \
+       sys/event.h \
+       sys/epoll.h \
+       assert.h \
+       iphlpapi.h \
+       netioapi.h \
+       netdb.h \
+       netinet/in.h \
+       netinet6/in6.h \
+       netinet/tcp.h \
+       net/if.h \
+       ifaddrs.h \
+       fcntl.h \
+       errno.h \
+       socket.h \
+       strings.h \
+       stdbool.h \
+       time.h \
+       poll.h \
+       limits.h \
+       arpa/nameser.h \
+       arpa/nameser_compat.h \
+       arpa/inet.h,
 dnl to do if not found
 [],
 dnl to do if found
@@ -511,9 +557,6 @@ cares_all_includes="
 #endif
 #ifdef HAVE_RESOLV_H
 #  include <resolv.h>
-#endif
-#ifdef HAVE_SYS_SYSTEM_PROPERTIES_H
-#  include <sys/system_properties.h>
 #endif
 #ifdef HAVE_IPHLPAPI_H
 #  include <iphlpapi.h>
@@ -830,6 +873,12 @@ if test "x$build_tests" != "xno" -a "x$cross_compiling" = "xyes" ; then
     AC_MSG_ERROR([*** Tests not supported when cross compiling])
   fi
 fi
+
+AC_ARG_ENABLE(test_override,
+  AS_HELP_STRING([--enable-test-override], [overrides all checks and builds tests.]),
+  [build_tests="$enableval"]
+)
+
 if test "x$build_tests" != "xno" ; then
   PKG_CHECK_MODULES([GMOCK], [gmock], [ have_gmock=yes ], [ have_gmock=no ])
   if test "x$have_gmock" = "xno" ; then
@@ -838,12 +887,6 @@ if test "x$build_tests" != "xno" ; then
       build_tests=no
     else
       AC_MSG_ERROR([tests require gmock])
-    fi
-  else
-    PKG_CHECK_MODULES([GMOCK112], [gmock >= 1.12.0], [ have_gmock_v112=yes ], [ have_gmock_v112=no ])
-    if test "x$have_gmock_v112" = "xyes" ; then
-      AX_CHECK_USER_NAMESPACE
-      AX_CHECK_UTS_NAMESPACE
     fi
   fi
 fi
@@ -867,12 +910,12 @@ AC_SUBST(AM_CPPFLAGS)
 AC_SUBST(PKGCONFIG_CFLAGS)
 AC_SUBST(BUILD_SUBDIRS)
 
-AC_CONFIG_FILES([Makefile
-                 include/Makefile
-                 src/Makefile
-                 src/lib/Makefile
-                 src/tools/Makefile
-                 docs/Makefile
+AC_CONFIG_FILES([Makefile           \
+                 include/Makefile   \
+                 src/Makefile       \
+                 src/lib/Makefile   \
+                 src/tools/Makefile \
+                 docs/Makefile      \
                  libcares.pc ])
 AM_COND_IF([BUILD_TESTS],
            [AC_CONFIG_FILES([test/Makefile])])

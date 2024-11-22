@@ -42,17 +42,7 @@ void ares_destroy(ares_channel_t *channel)
     return;
   }
 
-  /* Mark as being shutdown */
-  ares__channel_lock(channel);
-  channel->sys_up = ARES_FALSE;
-  ares__channel_unlock(channel);
-
-  /* Disable configuration change monitoring.  We can't hold a lock because
-   * some cleanup routines, such as on Windows, are synchronous operations.
-   * What we've observed is a system config change event was triggered right
-   * at shutdown time and it tries to take the channel lock and the destruction
-   * waits for that event to complete before it continues so we get a channel
-   * lock deadlock at shutdown if we hold a lock during this process. */
+  /* Disable configuration change monitoring */
   if (channel->optmask & ARES_OPT_EVENT_THREAD) {
     ares_event_thread_t *e = channel->sock_state_cb_data;
     if (e && e->configchg) {
@@ -61,17 +51,23 @@ void ares_destroy(ares_channel_t *channel)
     }
   }
 
-  /* Wait for reinit thread to exit if there was one pending, can't be
-   * holding a lock as the thread may take locks. */
+  /* Wait for reinit thread to exit if there was one pending */
   if (channel->reinit_thread != NULL) {
     void *rv;
     ares__thread_join(channel->reinit_thread, &rv);
     channel->reinit_thread = NULL;
   }
 
-  /* Lock because callbacks will be triggered, and any system-generated
-   * callbacks need to hold a channel lock. */
+  /* Lock because callbacks will be triggered */
   ares__channel_lock(channel);
+
+#ifdef __QNXNTO__
+  free(channel->conf_domain);
+  channel->conf_domain = NULL;
+
+  free(channel->conf_resolv);
+  channel->conf_resolv = NULL;
+#endif
 
   /* Destroy all queries */
   node = ares__llist_node_first(channel->all_queries);
@@ -163,3 +159,8 @@ void ares__destroy_servers_state(ares_channel_t *channel)
   ares__slist_destroy(channel->servers);
   channel->servers = NULL;
 }
+
+#if defined(__QNXNTO__) && defined(__USESRCVERSION)
+#include <sys/srcversion.h>
+__SRCVERSION("$URL: http://f27svn.qnx.com/svn/repos/osr/branches/8.0.0/trunk/cares/dist/src/lib/ares_destroy.c $ $Rev: 4177 $")
+#endif

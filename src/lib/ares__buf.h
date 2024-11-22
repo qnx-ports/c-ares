@@ -597,3 +597,8 @@ ares_status_t ares__buf_load_file(const char *filename, ares__buf_t *buf);
 /*! @} */
 
 #endif /* __ARES__BUF_H */
+
+#if defined(__QNXNTO__) && defined(__USESRCVERSION)
+#include <sys/srcversion.h>
+__SRCVERSION("$URL$ $Rev$")
+#endif

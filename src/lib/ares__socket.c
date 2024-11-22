@@ -212,7 +212,11 @@ static int configure_socket(ares_socket_t s, struct server_state *server)
 #ifdef SO_BINDTODEVICE
   if (channel->local_dev_name[0] &&
       setsockopt(s, SOL_SOCKET, SO_BINDTODEVICE, channel->local_dev_name,
+#ifndef __QNXNTO__
                  sizeof(channel->local_dev_name))) {
+#else /* !__QNXNTO__ */
+                 sizeof(channel->local_dev_name) + 1)) {
+#endif /* __QNXNTO__ */
     /* Only root can do this, and usually not fatal if it doesn't work, so */
     /* just continue on. */
   }
@@ -480,3 +484,8 @@ void ares_set_socket_functions(ares_channel_t                     *channel,
   channel->sock_funcs        = funcs;
   channel->sock_func_cb_data = data;
 }
+
+#if defined(__QNXNTO__) && defined(__USESRCVERSION)
+#include <sys/srcversion.h>
+__SRCVERSION("$URL$ $Rev$")
+#endif

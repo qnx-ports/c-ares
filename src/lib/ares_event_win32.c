@@ -972,3 +972,8 @@ const ares_event_sys_t ares_evsys_win32 = { "win32",
 #if defined(__clang__)
 #  pragma GCC diagnostic pop
 #endif
+
+#if defined(__QNXNTO__) && defined(__USESRCVERSION)
+#include <sys/srcversion.h>
+__SRCVERSION("$URL$ $Rev$")
+#endif

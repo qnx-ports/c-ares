@@ -67,10 +67,205 @@
 #include "ares_private.h"
 #include "ares_event.h"
 
+#ifdef __QNXNTO__
+#include <sys/slog.h>
+#include <sys/slogcodes.h>
+/* enable this to get debugging logs */
+/*#define DEBUG*/
+#endif
+
 #ifdef WATT32
 #  undef WIN32 /* Redefined in MingW/MSVC headers */
 #endif
 
+
+#ifdef __QNXNTO__
+/* CODE DUPLICATION WARNING: This code is a duplicate of code in
+ * libsocket (resolve/res_init.c) */
+static char *
+getconf(int token)
+{
+  size_t len;
+  char *buf;
+  char *cp;
+
+  if((len=confstr(token,NULL,0))==0) {
+    return(NULL);  /* Token not set */
+  }
+
+  if((buf=malloc(len))==NULL)
+    return(NULL);
+  if(confstr(token,buf,len)==0){
+    *buf = '\0';
+  }
+
+  cp=buf;
+  while(*cp != '\0'){
+    if(*cp=='_')
+    *cp=' ';
+    cp++;
+  }
+
+  return(buf);
+}
+
+/* CODE DUPLICATION WARNING: This code is a duplicate of code in
+ * libsocket (resolve/res_init.c) */
+/* returns 1 if the values differ, 0 otherwise */
+static int
+res_conf_str_used_and_differs(const char * previous_value, int token)
+{
+  if (previous_value == NULL || previous_value[0] == '\0') {
+    /* We never used the previous value, so we must be loading via
+     * another technique or the value has changed. Do not cause
+     * needs_reload() to return 0 as a timeout may have occured.
+     */
+    return 1;
+  }
+
+  char * current_value = getconf(token);
+  if (NULL == current_value || current_value[0] == '\0') {
+    /* We could not get a value, or we ran into a memory issue of
+     * some sort. Do not cause needs_reload() to return 0 as a
+     * timeout may have occured.
+     */
+    return 1;
+  }
+
+  int res = (strcmp(previous_value, current_value) == 0) ? 0 : 1;
+
+#ifdef DEBUG
+  slogf(_SLOG_SETCODE(_SLOGC_TEST, 0), _SLOG_DEBUG1,
+      "res_conf_str_used_and_differs: res=%d previous_value=%s, current_value=%s",
+      (int)res,
+      (const char *)((previous_value) ? previous_value : "<null>"),
+      (const char *)current_value);
+#endif
+
+  free(current_value);
+
+  return res;
+}
+
+/* Similar to config_search() defined in ares_sysconfig_files.c */
+static ares_status_t config_domain(ares_channel_t *channel, const char *str,
+                                   size_t max_domains)
+{
+  if (channel->domains && channel->ndomains > 0) {
+    /* if we already have some domains present, free them first */
+    ares__strsplit_free(channel->domains, channel->ndomains);
+    channel->domains  = NULL;
+    channel->ndomains = 0;
+  }
+
+  channel->domains = ares__strsplit(str, ", ", &channel->ndomains);
+  if (channel->domains == NULL) {
+    return ARES_ENOMEM;
+  }
+
+  /* Truncate if necessary */
+  if (max_domains && channel->ndomains > max_domains) {
+    size_t i;
+    for (i = max_domains; i < channel->ndomains; i++) {
+      ares_free(channel->domains[i]);
+      channel->domains[i] = NULL;
+    }
+    channel->ndomains = max_domains;
+  }
+
+  return ARES_SUCCESS;
+}
+
+static ares_status_t init_by_qnx_conf(ares_channel_t *channel)
+{
+    int status = ARES_SUCCESS;
+    char *p;
+
+    ares__channel_lock(channel);
+
+    /* CS_RESOLVE and CS_DOMAIN could be set independently */
+
+    if (ares__slist_len(channel->servers) == 0) {  /* don't override ARES_OPT_SERVER */
+      if (channel->conf_resolv)
+        free(channel->conf_resolv);
+      channel->conf_resolv = NULL;
+      char *buf = getconf(_CS_RESOLVE);
+      if (buf) {
+	/* We have configuration information which can set cache time.
+	 * Reset cache time to infinite as a configuration which does
+         * not set cache time is default to infinite.
+	 */
+        channel->max_cache_time_in_nsec = RES_INFINITE_CACHE_TIME;
+        channel->conf_resolv = strdup(buf); /* make a copy as strtok modifies the original string */
+        p = strtok(buf, " \t\n\r");
+        while (p) {
+          if (strcasecmp(p, "nameserver") == 0) {
+            p = strtok(NULL, " \t\n\r");
+            if (p) {
+	      status = ares__sconfig_append_fromstr(&sysconfig.sconfig, p, ARES_TRUE);
+	      if (status != ARES_SUCCESS) {
+		goto out;
+	      }
+	      status = ares__servers_update(channel, sysconfig.sconfig, ARES_FALSE);
+	      if (status != ARES_SUCCESS) {
+		goto out;
+	      }
+            }
+          } else if (strcasecmp(p, "nocache") == 0) {
+            /* we expect a second parameter, typically "on", but we
+             * don't actually look at the value currently
+             * NOTE: this is mimicking the existing behaviour in the
+             * resolve library in libsocket*/
+            p = strtok(NULL, " \t\n\r");
+            channel->max_cache_time_in_nsec = 1; /* Do not cache */
+          } else if (strcasecmp(p, "maxcachetime") == 0) {
+            p = strtok(NULL, " \t\n\r");
+            if (p) {
+              char * endptr = NULL;
+              unsigned long v = strtoul(p, &endptr, 0);
+              if (!(((endptr == p) && (0 == v)) ||
+                  ((ULONG_MAX == v) && (ERANGE == errno)))) {
+                /* save after converting from milliseconds to nanoseconds */
+                channel->max_cache_time_in_nsec = (uint64_t)v * (uint64_t)1000 * (uint64_t)1000;
+#ifdef DEBUG
+                slogf(_SLOG_SETCODE(_SLOGC_TEST, 0), _SLOG_DEBUG1,
+                    "init_by_resolv_conf: maxcachetime=%lu milliseconds",
+                    (unsigned long)v);
+#endif
+              }
+            }
+          }
+          p = strtok(NULL, " \t\n\r");
+        }
+        free(buf);
+      }
+    }
+
+    /* CS_RESOLVE and CS_DOMAIN could be set independently */
+
+    if (channel->ndomains == -1) {
+      if (channel->conf_domain)
+        free(channel->conf_domain);
+      channel->conf_domain = getconf(_CS_DOMAIN);
+      if (channel->conf_domain) {
+        status = config_domain(channel, channel->conf_domain, 1);
+	if (status != ARES_SUCCESS) {
+	  goto out;
+	}
+      }
+    }
+
+    /* record the last load time */
+    /* NOTE: if res_conf_time is ever adjusted to use the time a file is written, the clock
+     * source may need to be changed to accommodate how file system times are derived
+     */
+    clock_gettime(CLOCK_MONOTONIC, &channel->res_conf_time);
+
+out:
+    ares__channel_unlock(channel);
+    return status;
+}
+#endif /* __QNXNTO__ */
 
 int ares_init(ares_channel_t **channelptr)
 {
@@ -287,8 +482,25 @@ int ares_init_options(ares_channel_t           **channelptr,
     return ARES_ENOMEM;
   }
 
-  /* We are in a good state */
-  channel->sys_up = ARES_TRUE;
+#ifdef __QNXNTO__
+  /* NOTE: if res_conf_time is ever adjusted to use the time a file is written, the clock
+   * source may need to be changed to accommodate how file system times are derived
+   */
+  clock_gettime(CLOCK_MONOTONIC, &(channel->res_conf_time));
+
+  /* QNX extensions include the ability to reload the configuration. There
+   * are several locations to do this from. If done from the C-ARES API, we
+   * don't want to override this as it has the highest priority. It has no
+   * concept of cache timeout, so the default should be
+   * RES_INFINIT_CACHE_TIME. If there is a source that has the concept of
+   * a cache timeout, it can set it, and if used based on priority it will
+   * timeout, and the next highest priority source will be used.
+   */
+
+  channel->max_cache_time_in_nsec = RES_INFINITE_CACHE_TIME;
+  channel->conf_domain = NULL;
+  channel->conf_resolv = NULL;
+#endif
 
   /* One option where zero is valid, so set default value here */
   channel->ndots = 1;
@@ -370,6 +582,16 @@ int ares_init_options(ares_channel_t           **channelptr,
     }
   }
 
+#ifdef __QNXNTO__
+  if (status == ARES_SUCCESS) {
+    status = init_by_qnx_conf(channel);
+    if (status != ARES_SUCCESS) {
+      DEBUGF(fprintf(stderr, "Error: init_by_qnx_conf failed: %s\n",
+                     ares_strerror(status)));
+    }
+  }
+#endif /* __QNXNTO__ */
+
   /*
    * No matter what failed or succeeded, seed defaults to provide
    * useful behavior for things that we missed.
@@ -446,9 +668,8 @@ ares_status_t ares_reinit(ares_channel_t *channel)
 
   ares__channel_lock(channel);
 
-  /* If a reinit is already in process, lets not do it again. Or if we are
-   * shutting down, skip. */
-  if (!channel->sys_up || channel->reinit_pending) {
+  /* If a reinit is already in process, lets not do it again */
+  if (channel->reinit_pending) {
     ares__channel_unlock(channel);
     return ARES_SUCCESS;
   }
@@ -494,6 +715,7 @@ int ares_dup(ares_channel_t **dest, const ares_channel_t *src)
 
   *dest = NULL; /* in case of failure return NULL explicitly */
 
+  ares__channel_lock(src);
   /* First get the options supported by the old ares_save_options() function,
      which is most of them */
   rc = (ares_status_t)ares_save_options(src, &opts, &optmask);
@@ -512,7 +734,6 @@ int ares_dup(ares_channel_t **dest, const ares_channel_t *src)
     goto done;
   }
 
-  ares__channel_lock(src);
   /* Now clone the options that ares_save_options() doesn't support, but are
    * user-provided */
   (*dest)->sock_create_cb       = src->sock_create_cb;
@@ -528,7 +749,7 @@ int ares_dup(ares_channel_t **dest, const ares_channel_t *src)
               sizeof((*dest)->local_dev_name));
   (*dest)->local_ip4 = src->local_ip4;
   memcpy((*dest)->local_ip6, src->local_ip6, sizeof(src->local_ip6));
-  ares__channel_unlock(src);
+
 
   /* Servers are a bit unique as ares_init_options() only allows ipv4 servers
    * and not a port per server, but there are other user specified ways, that
@@ -560,6 +781,7 @@ int ares_dup(ares_channel_t **dest, const ares_channel_t *src)
 
   rc = ARES_SUCCESS;
 done:
+  ares__channel_unlock(src);
   return (int)rc; /* everything went fine */
 }
 
@@ -590,6 +812,13 @@ void ares_set_local_dev(ares_channel_t *channel, const char *local_dev_name)
   if (channel == NULL) {
     return;
   }
+
+#ifdef __QNXNTO__
+  if (local_dev_name == NULL) {
+    memset(channel->local_dev_name, 0x00, sizeof(channel->local_dev_name));
+    return;
+  }
+#endif
 
   ares__channel_lock(channel);
   ares_strcpy(channel->local_dev_name, local_dev_name,
@@ -623,3 +852,145 @@ int ares_set_sortlist(ares_channel_t *channel, const char *sortstr)
   ares__channel_unlock(channel);
   return (int)status;
 }
+
+#ifdef __QNXNTO__
+/* returns 1 if the resolver information should be reloaded,
+ * returns 0 if there is no need to reload */
+static int needs_reload(ares_channel channel, int force)
+{
+  if (NULL == channel)
+    return 0;
+
+  if (!force) {
+    /* if caching is disabled (this is the default), we never reload after we
+     * have loaded the first time regardless of what's changed
+     */
+    uint64_t max_cache_time_in_nsec = channel->max_cache_time_in_nsec;
+    if (max_cache_time_in_nsec == RES_INFINITE_CACHE_TIME) {
+#ifdef DEBUG
+      slogf(_SLOG_SETCODE(_SLOGC_TEST, 0), _SLOG_DEBUG1,
+          "needs_reload: caching disabled -- max_cache_time_in_nsec=RES_INFINITE_CACHE_TIME");
+#endif
+      return 0;
+    }
+
+    /* if we haven't exceeded the timeout, no need to reload */
+    if (max_cache_time_in_nsec > 0) {
+      struct timespec ts;
+      clock_gettime(CLOCK_MONOTONIC, &ts);
+      uint64_t now = timespec2nsec(&ts);
+      uint64_t then = timespec2nsec(&(channel->res_conf_time));
+      if (now - then < max_cache_time_in_nsec) {
+#ifdef DEBUG
+        slogf(_SLOG_SETCODE(_SLOGC_TEST, 0), _SLOG_DEBUG1,
+            "needs_reload: not yet exceeded cache interval time (now={tv_sec=%lu,tv_nsec=%lu},"
+            " then={tv_sec=%lu,tv_nsec=%lu}, max_cache_time_in_nsec=%lu)",
+            (unsigned long)ts.tv_sec,
+            (unsigned long)ts.tv_nsec,
+            (unsigned long)channel->res_conf_time.tv_sec,
+            (unsigned long)channel->res_conf_time.tv_nsec,
+            (unsigned long)max_cache_time_in_nsec);
+#endif
+        return 0;
+      }
+    }
+  } else {
+#ifdef DEBUG
+    slogf(_SLOG_SETCODE(_SLOGC_TEST, 0), _SLOG_DEBUG1,
+        "needs_reload: cache timeout overridden by force");
+#endif
+  }
+
+  /* check to see if the confSTR values of interest were used and have changed
+   * NOTE: we will actually end up reloading the confSTR values in __res_init(), but
+   * we haven't tried to optimize passing them to __res_vinit() so as to keep the
+   * diff smaller against the public version of this library, given the fact that
+   * they won't change that often, we consider this an acceptable impact in the
+   * reload scenario */
+  if ((0 == res_conf_str_used_and_differs(channel->conf_domain, _CS_DOMAIN)) &&
+      (0 == res_conf_str_used_and_differs(channel->conf_resolv, _CS_RESOLVE))) {
+#ifdef DEBUG
+    slogf(_SLOG_SETCODE(_SLOGC_TEST, 0), _SLOG_DEBUG1,
+        "needs_reload: values for CS_DOMAIN and CS_RESOLVE have not changed");
+#endif
+    return 0;
+  }
+
+  return 1;
+}
+
+void ares__check_for_config_reload(ares_channel channel)
+{
+  ares__check_for_config_reload_force(channel, 0);
+}
+
+void ares__check_for_config_reload_force(ares_channel channel, int force)
+{
+  if (!needs_reload(channel, force))
+    return;
+
+  slogf(_SLOG_SETCODE(_SLOGC_TEST, 0), _SLOG_DEBUG1,
+      "ares__check_for_config_reload: reloading configuration");
+
+  /* cancel all outstanding requests - notifications are sent to callbacks/clients */
+  ares_cancel(channel);
+
+  /* reload the configuration by loading into a new instance and swap
+   * the instances (allowing for easier "freeing" of the data) */
+  ares_channel new_channel;
+  int result = ares_init_options(&new_channel, NULL, 0);
+  if (ARES_SUCCESS != result) {
+    slogf(_SLOG_SETCODE(_SLOGC_TEST, 0), _SLOG_WARNING,
+        "ares__check_for_config_reload: failed to reload DNS resolver configuration for libcares");
+    return;
+  }
+
+  {
+    channel->ndots = new_channel->ndots;
+    channel->timeout = new_channel->timeout;
+    channel->tries = new_channel->tries;
+    channel->rotate = new_channel->rotate;
+
+    ares__slist_t *servers  = channel->servers;
+    channel->servers = new_channel->servers;
+    new_channel->servers = servers;
+
+    size_t nsort = channel->nsort;
+    struct apattern * sortlist = channel->sortlist;
+    channel->nsort = new_channel->nsort;
+    channel->sortlist = new_channel->sortlist;
+    new_channel->nsort = nsort;
+    new_channel->sortlist = sortlist;
+
+    size_t ndomains = channel->ndomains;
+    char ** domains = channel->domains;
+    channel->ndomains = new_channel->ndomains;
+    channel->domains = new_channel->domains;
+    new_channel->ndomains = ndomains;
+    new_channel->domains = domains;
+
+    char * lookups = channel->lookups;
+    channel->lookups = new_channel->lookups;
+    new_channel->lookups = lookups;
+
+    channel->res_conf_time = new_channel->res_conf_time;
+    channel->max_cache_time_in_nsec = new_channel->max_cache_time_in_nsec;
+
+    char * conf_domain = channel->conf_domain;
+    char * conf_resolv = channel->conf_resolv;
+    channel->conf_domain = new_channel->conf_domain;
+    channel->conf_resolv = new_channel->conf_resolv;
+    new_channel->conf_domain = conf_domain;
+    new_channel->conf_resolv = conf_resolv;
+  }
+
+  /* Release the temporary object */
+  ares_destroy(new_channel);
+  new_channel = NULL;
+}
+#endif
+
+#if defined(__QNXNTO__) && defined(__USESRCVERSION)
+#include <sys/srcversion.h>
+__SRCVERSION("$URL: http://f27svn.qnx.com/svn/repos/osr/branches/8.0.0/trunk/cares/dist/src/lib/ares_init.c $ $Rev: 4177 $")
+#endif

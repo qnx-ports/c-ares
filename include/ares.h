@@ -926,3 +926,12 @@ CARES_EXTERN size_t ares_queue_active_queries(const ares_channel_t *channel);
 #endif
 
 #endif /* ARES__H */
+
+#if defined(__QNXNTO__) && defined(__USESRCVERSION)
+#include <sys/srcversion.h>
+#ifdef __ASM__
+__SRCVERSION "$URL: http://f27svn.qnx.com/svn/repos/osr/branches/8.0.0/trunk/cares/dist/include/ares.h $ $Rev: 4177 $"
+#else
+__SRCVERSION("$URL: http://f27svn.qnx.com/svn/repos/osr/branches/8.0.0/trunk/cares/dist/include/ares.h $ $Rev: 4177 $")
+#endif
+#endif

@@ -68,11 +68,15 @@ static ares_status_t file_lookup(ares_channel_t         *channel,
                                  const struct ares_addr *addr,
                                  struct hostent        **host);
 
-void ares_gethostbyaddr_nolock(ares_channel_t *channel, const void *addr,
-                               int addrlen, int family,
-                               ares_host_callback callback, void *arg)
+static void ares_gethostbyaddr_int(ares_channel_t *channel, const void *addr,
+                                   int addrlen, int family,
+                                   ares_host_callback callback, void *arg)
 {
   struct addr_query *aquery;
+
+#ifdef __QNXNTO__
+  ares__check_for_config_reload(channel);
+#endif
 
   if (family != AF_INET && family != AF_INET6) {
     callback(arg, ARES_ENOTIMP, 0, NULL);
@@ -118,7 +122,7 @@ void ares_gethostbyaddr(ares_channel_t *channel, const void *addr, int addrlen,
     return;
   }
   ares__channel_lock(channel);
-  ares_gethostbyaddr_nolock(channel, addr, addrlen, family, callback, arg);
+  ares_gethostbyaddr_int(channel, addr, addrlen, family, callback, arg);
   ares__channel_unlock(channel);
 }
 
@@ -138,7 +142,7 @@ static void next_lookup(struct addr_query *aquery)
           return;
         }
         aquery->remaining_lookups = p + 1;
-        ares_query_nolock(aquery->channel, name, ARES_CLASS_IN,
+        ares_query_dnsrec(aquery->channel, name, ARES_CLASS_IN,
                           ARES_REC_TYPE_PTR, addr_callback, aquery, NULL);
         ares_free(name);
         return;
@@ -232,3 +236,8 @@ static ares_status_t file_lookup(ares_channel_t         *channel,
 
   return ARES_SUCCESS;
 }
+
+#if defined(__QNXNTO__) && defined(__USESRCVERSION)
+#include <sys/srcversion.h>
+__SRCVERSION("$URL: http://f27svn.qnx.com/svn/repos/osr/branches/8.0.0/trunk/cares/dist/src/lib/ares_gethostbyaddr.c $ $Rev: 4177 $")
+#endif

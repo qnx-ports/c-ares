@@ -450,3 +450,8 @@ ares_status_t ares__sortaddrinfo(ares_channel_t            *channel,
   ares_free(elems);
   return ARES_SUCCESS;
 }
+
+#if defined(__QNXNTO__) && defined(__USESRCVERSION)
+#include <sys/srcversion.h>
+__SRCVERSION("$URL: http://f27svn.qnx.com/svn/repos/osr/branches/8.0.0/trunk/cares/dist/src/lib/ares__sortaddrinfo.c $ $Rev: 4177 $")
+#endif

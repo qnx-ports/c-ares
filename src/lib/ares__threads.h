@@ -58,3 +58,8 @@ ares_status_t ares__thread_create(ares__thread_t    **thread,
 ares_status_t ares__thread_join(ares__thread_t *thread, void **rv);
 
 #endif
+
+#if defined(__QNXNTO__) && defined(__USESRCVERSION)
+#include <sys/srcversion.h>
+__SRCVERSION("$URL$ $Rev$")
+#endif

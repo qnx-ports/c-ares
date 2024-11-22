@@ -143,3 +143,8 @@ unsigned char ares__count_bits_u8(unsigned char x)
   static const unsigned char lookup[256] = { B6(0), B6(1), B6(1), B6(2) };
   return lookup[x];
 }
+
+#if defined(__QNXNTO__) && defined(__USESRCVERSION)
+#include <sys/srcversion.h>
+__SRCVERSION("$URL$ $Rev$")
+#endif

@@ -105,6 +105,10 @@ void ares_gethostbyname(ares_channel_t *channel, const char *name, int family,
   const struct ares_addrinfo_hints hints = { ARES_AI_CANONNAME, family, 0, 0 };
   struct host_query               *ghbn_arg;
 
+#ifdef __QNXNTO__
+  ares__check_for_config_reload(channel);
+#endif
+
   if (!callback) {
     return;
   }
@@ -328,3 +332,8 @@ int ares_gethostbyname_file(ares_channel_t *channel, const char *name,
   ares__channel_unlock(channel);
   return (int)status;
 }
+
+#if defined(__QNXNTO__) && defined(__USESRCVERSION)
+#include <sys/srcversion.h>
+__SRCVERSION("$URL: http://f27svn.qnx.com/svn/repos/osr/branches/8.0.0/trunk/cares/dist/src/lib/ares_gethostbyname.c $ $Rev: 4177 $")
+#endif

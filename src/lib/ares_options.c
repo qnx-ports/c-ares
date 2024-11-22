@@ -477,6 +477,10 @@ ares_status_t ares__init_by_options(ares_channel_t            *channel,
       if (status != ARES_SUCCESS) {
         return status;
       }
+#ifdef __QNXNTO__
+    /* Setting the nameservers via this API is an infinite setting */
+    channel->max_cache_time_in_nsec = RES_INFINITE_CACHE_TIME;
+#endif
     }
   }
 
@@ -490,3 +494,8 @@ ares_status_t ares__init_by_options(ares_channel_t            *channel,
 
   return ARES_SUCCESS;
 }
+
+#if defined(__QNXNTO__) && defined(__USESRCVERSION)
+#include <sys/srcversion.h>
+__SRCVERSION("$URL: http://f27svn.qnx.com/svn/repos/osr/branches/8.0.0/trunk/cares/dist/src/lib/ares_options.c $ $Rev: 2429 $")
+#endif

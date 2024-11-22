@@ -131,3 +131,12 @@ typedef char   __cares_rule_03__[CareschkszGE(ares_socklen_t, int)];
 #undef CARES_TYPEOF_ARES_SOCKLEN_T
 
 #endif /* __CARES_RULES_H */
+
+#if defined(__QNXNTO__) && defined(__USESRCVERSION)
+#include <sys/srcversion.h>
+#ifdef __ASM__
+__SRCVERSION "$URL: http://f27svn.qnx.com/svn/repos/osr/branches/8.0.0/trunk/cares/dist/include/ares_rules.h $ $Rev: 4177 $"
+#else
+__SRCVERSION("$URL: http://f27svn.qnx.com/svn/repos/osr/branches/8.0.0/trunk/cares/dist/include/ares_rules.h $ $Rev: 4177 $")
+#endif
+#endif

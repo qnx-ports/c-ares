@@ -944,7 +944,7 @@ TEST_F(LibraryTest, CatDomain) {
 TEST_F(LibraryTest, BufMisuse) {
   EXPECT_EQ(NULL, ares__buf_create_const(NULL, 0));
   ares__buf_reclaim(NULL);
-  EXPECT_NE(ARES_SUCCESS, ares__buf_append(NULL, NULL, 55));
+  EXPECT_NE(ARES_SUCCESS, ares__buf_append(NULL, NULL, 0));
   size_t len = 10;
   EXPECT_EQ(NULL, ares__buf_append_start(NULL, &len));
   EXPECT_EQ(NULL, ares__buf_append_start(NULL, NULL));
@@ -1299,3 +1299,8 @@ const struct ares_socket_functions VirtualizeIO::default_functions = {
 
 }  // namespace test
 }  // namespace ares
+
+#if defined(__QNXNTO__) && defined(__USESRCVERSION)
+#include <sys/srcversion.h>
+__SRCVERSION("$URL: http://f27svn.qnx.com/svn/repos/osr/trunk/cares/dist/test/ares-test-internal.cc $ $Rev: 4177 $")
+#endif

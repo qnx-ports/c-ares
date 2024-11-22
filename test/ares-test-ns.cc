@@ -155,8 +155,8 @@ int RunInContainer(ContainerFilesystem* fs, const std::string& hostname,
   std::stringstream contentss;
   contentss << "0 " << getuid() << " 1" << std::endl;
   std::string content = contentss.str();
-  ssize_t rc = write(fd, content.c_str(), content.size());
-  if (rc != (ssize_t)content.size()) {
+  int rc = write(fd, content.c_str(), content.size());
+  if (rc != (int)content.size()) {
     std::cerr << "Failed to write uid map to '" << mapfile << "'" << std::endl;
   }
   close(fd);
@@ -181,13 +181,8 @@ ContainerFilesystem::ContainerFilesystem(NameContentList files, const std::strin
   dirs_.push_front(rootdir_);
   for (const auto& nc : files) {
     std::string fullpath = rootdir_ + nc.first;
-    size_t idx = fullpath.rfind('/');
-    std::string dir;
-    if (idx != SIZE_MAX) {
-      dir = fullpath.substr(0, idx);
-    } else {
-      dir = fullpath;
-    }
+    int idx = fullpath.rfind('/');
+    std::string dir = fullpath.substr(0, idx);
     EnsureDirExists(dir);
     files_.push_back(std::unique_ptr<TransientFile>(
         new TransientFile(fullpath, nc.second)));
@@ -226,4 +221,9 @@ void ContainerFilesystem::EnsureDirExists(const std::string& dir) {
 }  // namespace test
 }  // namespace ares
 
+#endif
+
+#if defined(__QNXNTO__) && defined(__USESRCVERSION)
+#include <sys/srcversion.h>
+__SRCVERSION("$URL: http://f27svn.qnx.com/svn/repos/osr/trunk/cares/dist/test/ares-test-ns.cc $ $Rev: 157 $")
 #endif

@@ -90,3 +90,12 @@ void *ares_malloc_data(ares_datatype type);
 
 
 #endif /* __ARES_DATA_H */
+
+#if defined(__QNXNTO__) && defined(__USESRCVERSION)
+#include <sys/srcversion.h>
+#ifdef __ASM__
+__SRCVERSION "$URL: http://f27svn.qnx.com/svn/repos/osr/branches/8.0.0/trunk/cares/dist/src/lib/ares_data.h $ $Rev: 4177 $"
+#else
+__SRCVERSION("$URL: http://f27svn.qnx.com/svn/repos/osr/branches/8.0.0/trunk/cares/dist/src/lib/ares_data.h $ $Rev: 4177 $")
+#endif
+#endif

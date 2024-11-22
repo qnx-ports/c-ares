@@ -444,3 +444,8 @@ unsigned int ares__htable_hash_FNV1a_casecmp(const unsigned char *key,
 
   return hv;
 }
+
+#if defined(__QNXNTO__) && defined(__USESRCVERSION)
+#include <sys/srcversion.h>
+__SRCVERSION("$URL$ $Rev$")
+#endif

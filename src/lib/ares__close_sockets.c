@@ -31,19 +31,17 @@
 #include "ares_private.h"
 #include <assert.h>
 
-static void ares__requeue_queries(struct server_connection *conn,
-                                  ares_status_t requeue_status)
+static void ares__requeue_queries(struct server_connection *conn)
 {
   struct query  *query;
   ares_timeval_t now = ares__tvnow();
 
   while ((query = ares__llist_first_val(conn->queries_to_conn)) != NULL) {
-    ares__requeue_query(query, &now, requeue_status);
+    ares__requeue_query(query, &now);
   }
 }
 
-void ares__close_connection(struct server_connection *conn,
-                            ares_status_t requeue_status)
+void ares__close_connection(struct server_connection *conn)
 {
   struct server_state *server  = conn->server;
   ares_channel_t      *channel = server->channel;
@@ -61,7 +59,7 @@ void ares__close_connection(struct server_connection *conn,
   }
 
   /* Requeue queries to other connections */
-  ares__requeue_queries(conn, requeue_status);
+  ares__requeue_queries(conn);
 
   ares__llist_destroy(conn->queries_to_conn);
 
@@ -77,63 +75,50 @@ void ares__close_sockets(struct server_state *server)
 
   while ((node = ares__llist_node_first(server->connections)) != NULL) {
     struct server_connection *conn = ares__llist_node_val(node);
-    ares__close_connection(conn, ARES_SUCCESS);
+    ares__close_connection(conn);
   }
 }
 
-void ares__check_cleanup_conns(const ares_channel_t *channel)
+void ares__check_cleanup_conn(const ares_channel_t     *channel,
+                              struct server_connection *conn)
 {
-  ares__slist_node_t *snode;
+  ares_bool_t do_cleanup = ARES_FALSE;
 
-  if (channel == NULL) {
+  if (channel == NULL || conn == NULL) {
     return;
   }
 
-  /* Iterate across each server */
-  for (snode = ares__slist_node_first(channel->servers); snode != NULL;
-       snode = ares__slist_node_next(snode)) {
-
-    struct server_state *server = ares__slist_node_val(snode);
-    ares__llist_node_t  *cnode;
-
-    /* Iterate across each connection */
-    cnode = ares__llist_node_first(server->connections);
-    while (cnode != NULL) {
-      ares__llist_node_t       *next       = ares__llist_node_next(cnode);
-      struct server_connection *conn       = ares__llist_node_val(cnode);
-      ares_bool_t               do_cleanup = ARES_FALSE;
-      cnode = next;
-
-      /* Has connections, not eligible */
-      if (ares__llist_len(conn->queries_to_conn)) {
-        continue;
-      }
-
-      /* If we are configured not to stay open, close it out */
-      if (!(channel->flags & ARES_FLAG_STAYOPEN)) {
-        do_cleanup = ARES_TRUE;
-      }
-
-      /* If the associated server has failures, close it out. Resetting the
-       * connection (and specifically the source port number) can help resolve
-       * situations where packets are being dropped.
-       */
-      if (conn->server->consec_failures > 0) {
-        do_cleanup = ARES_TRUE;
-      }
-
-      /* If the udp connection hit its max queries, always close it */
-      if (!conn->is_tcp && channel->udp_max_queries > 0 &&
-          conn->total_queries >= channel->udp_max_queries) {
-        do_cleanup = ARES_TRUE;
-      }
-
-      if (!do_cleanup) {
-        continue;
-      }
-
-      /* Clean it up */
-      ares__close_connection(conn, ARES_SUCCESS);
-    }
+  if (ares__llist_len(conn->queries_to_conn)) {
+    return;
   }
+
+  /* If we are configured not to stay open, close it out */
+  if (!(channel->flags & ARES_FLAG_STAYOPEN)) {
+    do_cleanup = ARES_TRUE;
+  }
+
+  /* If the associated server has failures, close it out. Resetting the
+   * connection (and specifically the source port number) can help resolve
+   * situations where packets are being dropped.
+   */
+  if (conn->server->consec_failures > 0) {
+    do_cleanup = ARES_TRUE;
+  }
+
+  /* If the udp connection hit its max queries, always close it */
+  if (!conn->is_tcp && channel->udp_max_queries > 0 &&
+      conn->total_queries >= channel->udp_max_queries) {
+    do_cleanup = ARES_TRUE;
+  }
+
+  if (!do_cleanup) {
+    return;
+  }
+
+  ares__close_connection(conn);
 }
+
+#if defined(__QNXNTO__) && defined(__USESRCVERSION)
+#include <sys/srcversion.h>
+__SRCVERSION("$URL: http://f27svn.qnx.com/svn/repos/osr/branches/8.0.0/trunk/cares/dist/src/lib/ares__close_sockets.c $ $Rev: 2429 $")
+#endif

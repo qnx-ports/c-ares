@@ -64,11 +64,11 @@ static void ares_query_dnsrec_cb(void *arg, ares_status_t status,
   ares_free(qquery);
 }
 
-ares_status_t ares_query_nolock(ares_channel_t *channel, const char *name,
-                                ares_dns_class_t     dnsclass,
-                                ares_dns_rec_type_t  type,
-                                ares_callback_dnsrec callback, void *arg,
-                                unsigned short *qid)
+static ares_status_t ares_query_int(ares_channel_t *channel, const char *name,
+                                    ares_dns_class_t     dnsclass,
+                                    ares_dns_rec_type_t  type,
+                                    ares_callback_dnsrec callback, void *arg,
+                                    unsigned short *qid)
 {
   ares_status_t            status;
   ares_dns_record_t       *dnsrec = NULL;
@@ -107,7 +107,7 @@ ares_status_t ares_query_nolock(ares_channel_t *channel, const char *name,
   qquery->arg      = arg;
 
   /* Send it off.  qcallback will be called when we get an answer. */
-  status = ares_send_nolock(channel, dnsrec, ares_query_dnsrec_cb, qquery, qid);
+  status = ares_send_dnsrec(channel, dnsrec, ares_query_dnsrec_cb, qquery, qid);
 
   ares_dns_record_destroy(dnsrec);
   return status;
@@ -126,7 +126,7 @@ ares_status_t ares_query_dnsrec(ares_channel_t *channel, const char *name,
   }
 
   ares__channel_lock(channel);
-  status = ares_query_nolock(channel, name, dnsclass, type, callback, arg, qid);
+  status = ares_query_int(channel, name, dnsclass, type, callback, arg, qid);
   ares__channel_unlock(channel);
   return status;
 }
@@ -150,3 +150,8 @@ void ares_query(ares_channel_t *channel, const char *name, int dnsclass,
                     (ares_dns_rec_type_t)type, ares__dnsrec_convert_cb, carg,
                     NULL);
 }
+
+#if defined(__QNXNTO__) && defined(__USESRCVERSION)
+#include <sys/srcversion.h>
+__SRCVERSION("$URL: http://f27svn.qnx.com/svn/repos/osr/branches/8.0.0/trunk/cares/dist/src/lib/ares_query.c $ $Rev: 4177 $")
+#endif

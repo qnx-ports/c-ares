@@ -36,3 +36,12 @@ void   ares_library_cleanup_android(void);
 #endif
 
 #endif /* __ARES_ANDROID_H__ */
+
+#if defined(__QNXNTO__) && defined(__USESRCVERSION)
+#include <sys/srcversion.h>
+#ifdef __ASM__
+__SRCVERSION "$URL: http://f27svn.qnx.com/svn/repos/osr/branches/8.0.0/trunk/cares/dist/src/lib/ares_android.h $ $Rev: 2429 $"
+#else
+__SRCVERSION("$URL: http://f27svn.qnx.com/svn/repos/osr/branches/8.0.0/trunk/cares/dist/src/lib/ares_android.h $ $Rev: 2429 $")
+#endif
+#endif

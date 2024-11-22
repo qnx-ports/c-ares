@@ -591,3 +591,8 @@ void ares_event_configchg_destroy(ares_event_configchg_t *configchg)
 }
 
 #endif
+
+#if defined(__QNXNTO__) && defined(__USESRCVERSION)
+#include <sys/srcversion.h>
+__SRCVERSION("$URL$ $Rev$")
+#endif

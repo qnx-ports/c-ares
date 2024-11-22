@@ -78,3 +78,8 @@ int ares_mkquery(const char *name, int dnsclass, int type, unsigned short id,
 {
   return ares_create_query_int(name, dnsclass, type, id, rd, buf, buflen, 0);
 }
+
+#if defined(__QNXNTO__) && defined(__USESRCVERSION)
+#include <sys/srcversion.h>
+__SRCVERSION("$URL: http://f27svn.qnx.com/svn/repos/osr/branches/8.0.0/trunk/cares/dist/src/lib/ares_create_query.c $ $Rev: 4177 $")
+#endif

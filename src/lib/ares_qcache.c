@@ -447,3 +447,8 @@ ares_status_t ares_qcache_insert(ares_channel_t       *channel,
   return ares__qcache_insert(channel->qcache, dnsrec, query->qbuf, query->qlen,
                              now);
 }
+
+#if defined(__QNXNTO__) && defined(__USESRCVERSION)
+#include <sys/srcversion.h>
+__SRCVERSION("$URL$ $Rev$")
+#endif

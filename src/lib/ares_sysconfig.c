@@ -1064,13 +1064,24 @@ static ares_status_t ares_sysconfig_apply(ares_channel_t         *channel,
     channel->flags |= ARES_FLAG_USEVC;
   }
 
+#ifdef __QNXNTO__
+  if (sysconfig->max_cache_time_in_nsec) {
+    channel->max_cache_time_in_nsec = sysconfig->max_cache_time_in_nsec;
+  }
+#endif /* __QNXNTO__ */
+
   return ARES_SUCCESS;
 }
 
+#ifdef __QNXNTO__
+ares_sysconfig_t sysconfig;
+#endif  /* __QNXNTO__ */
 ares_status_t ares__init_by_sysconfig(ares_channel_t *channel)
 {
   ares_status_t    status;
+  #ifndef __QNXNTO__
   ares_sysconfig_t sysconfig;
+  #endif  /* !__QNXNTO__ */
 
   memset(&sysconfig, 0, sizeof(sysconfig));
   sysconfig.ndots = 1; /* Default value if not otherwise set */
@@ -1120,3 +1131,8 @@ done:
 
   return status;
 }
+
+#if defined(__QNXNTO__) && defined(__USESRCVERSION)
+#include <sys/srcversion.h>
+__SRCVERSION("$URL$ $Rev$")
+#endif

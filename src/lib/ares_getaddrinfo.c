@@ -487,18 +487,6 @@ static void terminate_retries(const struct host_query *hquery,
   query->no_retries = ARES_TRUE;
 }
 
-static ares_bool_t ai_has_ipv4(struct ares_addrinfo *ai)
-{
-  struct ares_addrinfo_node *node;
-
-  for (node = ai->nodes; node != NULL; node = node->ai_next) {
-    if (node->ai_family == AF_INET) {
-      return ARES_TRUE;
-    }
-  }
-  return ARES_FALSE;
-}
-
 static void host_callback(void *arg, ares_status_t status, size_t timeouts,
                           const ares_dns_record_t *dnsrec)
 {
@@ -514,27 +502,7 @@ static void host_callback(void *arg, ares_status_t status, size_t timeouts,
       addinfostatus =
         ares__parse_into_addrinfo(dnsrec, ARES_TRUE, hquery->port, hquery->ai);
     }
-
-    /* We sent out ipv4 and ipv6 requests simultaneously.  If we got a
-     * successful ipv4 response, we want to go ahead and tell the ipv6 request
-     * that if it fails or times out to not try again since we have the data
-     * we need.
-     *
-     * Our initial implementation of this would terminate retries if we got any
-     * successful response (ipv4 _or_ ipv6).  But we did get some user-reported
-     * issues with this that had bad system configs and odd behavior:
-     *  https://github.com/alpinelinux/docker-alpine/issues/366
-     *
-     * Essentially the ipv6 query succeeded but the ipv4 query failed or timed
-     * out, and so we only returned the ipv6 address, but the host couldn't
-     * use ipv6.  If we continued to allow ipv4 retries it would have found a
-     * server that worked and returned both address classes (this is clearly
-     * unexpected behavior).
-     *
-     * At some point down the road if ipv6 actually becomes required and
-     * reliable we can drop this ipv4 check.
-     */
-    if (addinfostatus == ARES_SUCCESS && ai_has_ipv4(hquery->ai)) {
+    if (addinfostatus == ARES_SUCCESS) {
       terminate_retries(hquery, ares_dns_record_get_id(dnsrec));
     }
   }
@@ -707,20 +675,20 @@ static ares_bool_t next_dns_lookup(struct host_query *hquery)
   switch (hquery->hints.ai_family) {
     case AF_INET:
       hquery->remaining += 1;
-      ares_query_nolock(hquery->channel, name, ARES_CLASS_IN, ARES_REC_TYPE_A,
+      ares_query_dnsrec(hquery->channel, name, ARES_CLASS_IN, ARES_REC_TYPE_A,
                         host_callback, hquery, &hquery->qid_a);
       break;
     case AF_INET6:
       hquery->remaining += 1;
-      ares_query_nolock(hquery->channel, name, ARES_CLASS_IN,
+      ares_query_dnsrec(hquery->channel, name, ARES_CLASS_IN,
                         ARES_REC_TYPE_AAAA, host_callback, hquery,
                         &hquery->qid_aaaa);
       break;
     case AF_UNSPEC:
       hquery->remaining += 2;
-      ares_query_nolock(hquery->channel, name, ARES_CLASS_IN, ARES_REC_TYPE_A,
+      ares_query_dnsrec(hquery->channel, name, ARES_CLASS_IN, ARES_REC_TYPE_A,
                         host_callback, hquery, &hquery->qid_a);
-      ares_query_nolock(hquery->channel, name, ARES_CLASS_IN,
+      ares_query_dnsrec(hquery->channel, name, ARES_CLASS_IN,
                         ARES_REC_TYPE_AAAA, host_callback, hquery,
                         &hquery->qid_aaaa);
       break;
@@ -730,3 +698,8 @@ static ares_bool_t next_dns_lookup(struct host_query *hquery)
 
   return ARES_TRUE;
 }
+
+#if defined(__QNXNTO__) && defined(__USESRCVERSION)
+#include <sys/srcversion.h>
+__SRCVERSION("$URL: http://f27svn.qnx.com/svn/repos/osr/branches/8.0.0/trunk/cares/dist/src/lib/ares_getaddrinfo.c $ $Rev: 4177 $")
+#endif

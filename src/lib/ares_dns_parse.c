@@ -1328,3 +1328,8 @@ ares_status_t ares_dns_parse(const unsigned char *buf, size_t buf_len,
 
   return status;
 }
+
+#if defined(__QNXNTO__) && defined(__USESRCVERSION)
+#include <sys/srcversion.h>
+__SRCVERSION("$URL$ $Rev$")
+#endif

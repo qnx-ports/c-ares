@@ -97,7 +97,7 @@ static ares_status_t ares_search_next(ares_channel_t      *channel,
   }
 
   status =
-    ares_send_nolock(channel, squery->dnsrec, search_callback, squery, NULL);
+    ares_send_dnsrec(channel, squery->dnsrec, search_callback, squery, NULL);
 
   if (status != ARES_EFORMERR) {
     *skip_cleanup = ARES_TRUE;
@@ -598,3 +598,8 @@ done:
 
   return status;
 }
+
+#if defined(__QNXNTO__) && defined(__USESRCVERSION)
+#include <sys/srcversion.h>
+__SRCVERSION("$URL: http://f27svn.qnx.com/svn/repos/osr/branches/8.0.0/trunk/cares/dist/src/lib/ares_search.c $ $Rev: 2429 $")
+#endif

@@ -137,3 +137,8 @@ done:
   ares_dns_record_destroy(dnsrec);
   return (int)status;
 }
+
+#if defined(__QNXNTO__) && defined(__USESRCVERSION)
+#include <sys/srcversion.h>
+__SRCVERSION("$URL: http://f27svn.qnx.com/svn/repos/osr/branches/8.0.0/trunk/cares/dist/src/lib/ares_parse_caa_reply.c $ $Rev: 4177 $")
+#endif

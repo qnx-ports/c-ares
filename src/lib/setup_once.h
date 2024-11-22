@@ -467,3 +467,12 @@ Error Missing_definition_of_macro_sread
 
 
 #endif /* __SETUP_ONCE_H */
+
+#if defined(__QNXNTO__) && defined(__USESRCVERSION)
+#include <sys/srcversion.h>
+#ifdef __ASM__
+__SRCVERSION "$URL: http://f27svn.qnx.com/svn/repos/osr/branches/8.0.0/trunk/cares/dist/src/lib/setup_once.h $ $Rev: 2429 $"
+#else
+__SRCVERSION("$URL: http://f27svn.qnx.com/svn/repos/osr/branches/8.0.0/trunk/cares/dist/src/lib/setup_once.h $ $Rev: 2429 $")
+#endif
+#endif

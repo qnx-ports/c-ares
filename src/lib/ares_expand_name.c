@@ -116,3 +116,8 @@ ares_status_t ares__expand_name_for_response(const unsigned char *encoded,
   }
   return status;
 }
+
+#if defined(__QNXNTO__) && defined(__USESRCVERSION)
+#include <sys/srcversion.h>
+__SRCVERSION("$URL: http://f27svn.qnx.com/svn/repos/osr/branches/8.0.0/trunk/cares/dist/src/lib/ares_expand_name.c $ $Rev: 4177 $")
+#endif
