@@ -27,14 +27,6 @@
 #ifndef __ARES_PRIVATE_H
 #define __ARES_PRIVATE_H
 
-/*
- * Define WIN32 when build target is Win32 API
- */
-
-#if (defined(_WIN32) || defined(__WIN32__)) && !defined(WIN32)
-#  define WIN32
-#endif
-
 #ifdef HAVE_NETINET_IN_H
 #  include <netinet/in.h>
 #endif
@@ -60,7 +52,7 @@
  */
 #define CARES_INADDR_CAST(type, var) ((type)((void *)var))
 
-#if defined(WIN32) && !defined(WATT32)
+#if defined(USE_WINSOCK)
 
 #  define WIN_NS_9X     "System\\CurrentControlSet\\Services\\VxD\\MSTCP"
 #  define WIN_NS_NT_KEY "System\\CurrentControlSet\\Services\\Tcpip\\Parameters"
@@ -372,6 +364,12 @@ struct ares_channeldata {
    * exit. */
   ares_bool_t                         reinit_pending;
   ares__thread_t                     *reinit_thread;
+
+  /* Whether the system is up or not.  This is mainly to prevent deadlocks
+   * and access violations during the cleanup process.  Some things like
+   * system config changes might get triggered and we need a flag to make
+   * sure we don't take action. */
+  ares_bool_t                         sys_up;
 };
 
 /* Does the domain end in ".onion" or ".onion."? Case-insensitive. */
@@ -391,7 +389,8 @@ ares_bool_t   ares__timedout(const ares_timeval_t *now,
 /* Returns one of the normal ares status codes like ARES_SUCCESS */
 ares_status_t ares__send_query(struct query *query, const ares_timeval_t *now);
 ares_status_t ares__requeue_query(struct query         *query,
-                                  const ares_timeval_t *now);
+                                  const ares_timeval_t *now,
+                                  ares_status_t         status);
 
 /*! Retrieve a list of names to use for searching.  The first successful
  *  query in the list wins.  This function also uses the HOSTSALIASES file
@@ -419,10 +418,10 @@ void         *ares__dnsrec_convert_arg(ares_callback callback, void *arg);
 void ares__dnsrec_convert_cb(void *arg, ares_status_t status, size_t timeouts,
                              const ares_dns_record_t *dnsrec);
 
-void ares__close_connection(struct server_connection *conn);
+void ares__close_connection(struct server_connection *conn,
+                            ares_status_t requeue_status);
 void ares__close_sockets(struct server_state *server);
-void ares__check_cleanup_conn(const ares_channel_t     *channel,
-                              struct server_connection *conn);
+void ares__check_cleanup_conns(const ares_channel_t *channel);
 void ares__free_query(struct query *query);
 
 ares_rand_state *ares__init_rand_state(void);
@@ -438,11 +437,6 @@ ares_status_t  ares__expand_name_validated(const unsigned char *encoded,
                                            const unsigned char *abuf,
                                            size_t alen, char **s, size_t *enclen,
                                            ares_bool_t is_hostname);
-ares_status_t  ares__expand_name_for_response(const unsigned char *encoded,
-                                              const unsigned char *abuf,
-                                              size_t alen, char **s,
-                                              size_t     *enclen,
-                                              ares_bool_t is_hostname);
 ares_status_t  ares_expand_string_ex(const unsigned char *encoded,
                                      const unsigned char *abuf, size_t alen,
                                      unsigned char **s, size_t *enclen);
@@ -597,6 +591,26 @@ ares_status_t ares__hosts_entry_to_addrinfo(const ares_hosts_entry_t *entry,
                                             ares_bool_t           want_cnames,
                                             struct ares_addrinfo *ai);
 
+/* Same as ares_query_dnsrec() except does not take a channel lock.  Use this
+ * if a channel lock is already held */
+ares_status_t ares_query_nolock(ares_channel_t *channel, const char *name,
+                                ares_dns_class_t     dnsclass,
+                                ares_dns_rec_type_t  type,
+                                ares_callback_dnsrec callback, void *arg,
+                                unsigned short *qid);
+
+/* Same as ares_send_dnsrec() except does not take a channel lock.  Use this
+ * if a channel lock is already held */
+ares_status_t ares_send_nolock(ares_channel_t          *channel,
+                               const ares_dns_record_t *dnsrec,
+                               ares_callback_dnsrec     callback,
+                               void *arg, unsigned short *qid);
+
+/* Same as ares_gethostbyaddr() except does not take a channel lock.  Use this
+ * if a channel lock is already held */
+void ares_gethostbyaddr_nolock(ares_channel_t *channel, const void *addr,
+                               int addrlen, int family,
+                               ares_host_callback callback, void *arg);
 
 /*! Parse a compressed DNS name as defined in RFC1035 starting at the current
  *  offset within the buffer.

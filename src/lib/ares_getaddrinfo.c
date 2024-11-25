@@ -60,10 +60,7 @@
 #include "ares_private.h"
 #include "ares_dns.h"
 
-#ifdef WATT32
-#  undef WIN32
-#endif
-#ifdef WIN32
+#ifdef _WIN32
 #  include "ares_platform.h"
 #endif
 
@@ -112,7 +109,7 @@ struct ares_addrinfo_cname *
   struct ares_addrinfo_cname *last = *head;
 
   if (tail == NULL) {
-    return NULL;
+    return NULL; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   if (!last) {
@@ -152,7 +149,7 @@ struct ares_addrinfo_node *
   struct ares_addrinfo_node *last = *head;
 
   if (tail == NULL) {
-    return NULL;
+    return NULL; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   if (!last) {
@@ -277,8 +274,8 @@ static ares_bool_t fake_addrinfo(const char *name, unsigned short port,
       if (result) {
         status = ares_append_ai_node(AF_INET, port, 0, &addr4, &ai->nodes);
         if (status != ARES_SUCCESS) {
-          callback(arg, (int)status, 0, NULL);
-          return ARES_TRUE;
+          callback(arg, (int)status, 0, NULL); /* LCOV_EXCL_LINE: OutOfMemory */
+          return ARES_TRUE; /* LCOV_EXCL_LINE: OutOfMemory */
         }
       }
     }
@@ -291,8 +288,8 @@ static ares_bool_t fake_addrinfo(const char *name, unsigned short port,
     if (result) {
       status = ares_append_ai_node(AF_INET6, port, 0, &addr6, &ai->nodes);
       if (status != ARES_SUCCESS) {
-        callback(arg, (int)status, 0, NULL);
-        return ARES_TRUE;
+        callback(arg, (int)status, 0, NULL); /* LCOV_EXCL_LINE: OutOfMemory */
+        return ARES_TRUE; /* LCOV_EXCL_LINE: OutOfMemory */
       }
     }
   }
@@ -304,9 +301,11 @@ static ares_bool_t fake_addrinfo(const char *name, unsigned short port,
   if (hints->ai_flags & ARES_AI_CANONNAME) {
     cname = ares__append_addrinfo_cname(&ai->cnames);
     if (!cname) {
+      /* LCOV_EXCL_START: OutOfMemory */
       ares_freeaddrinfo(ai);
       callback(arg, ARES_ENOMEM, 0, NULL);
       return ARES_TRUE;
+      /* LCOV_EXCL_STOP */
     }
 
     /* Duplicate the name, to avoid a constness violation. */
@@ -371,7 +370,7 @@ ares_bool_t ares__is_localhost(const char *name)
   size_t len;
 
   if (name == NULL) {
-    return ARES_FALSE;
+    return ARES_FALSE; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
   if (strcmp(name, "localhost") == 0) {
@@ -415,7 +414,7 @@ static ares_status_t file_lookup(struct host_query *hquery)
     hquery->ai);
 
   if (status != ARES_SUCCESS) {
-    goto done;
+    goto done; /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
 
@@ -487,6 +486,18 @@ static void terminate_retries(const struct host_query *hquery,
   query->no_retries = ARES_TRUE;
 }
 
+static ares_bool_t ai_has_ipv4(struct ares_addrinfo *ai)
+{
+  struct ares_addrinfo_node *node;
+
+  for (node = ai->nodes; node != NULL; node = node->ai_next) {
+    if (node->ai_family == AF_INET) {
+      return ARES_TRUE;
+    }
+  }
+  return ARES_FALSE;
+}
+
 static void host_callback(void *arg, ares_status_t status, size_t timeouts,
                           const ares_dns_record_t *dnsrec)
 {
@@ -497,12 +508,32 @@ static void host_callback(void *arg, ares_status_t status, size_t timeouts,
 
   if (status == ARES_SUCCESS) {
     if (dnsrec == NULL) {
-      addinfostatus = ARES_EBADRESP;
+      addinfostatus = ARES_EBADRESP; /* LCOV_EXCL_LINE: DefensiveCoding */
     } else {
       addinfostatus =
         ares__parse_into_addrinfo(dnsrec, ARES_TRUE, hquery->port, hquery->ai);
     }
-    if (addinfostatus == ARES_SUCCESS) {
+
+    /* We sent out ipv4 and ipv6 requests simultaneously.  If we got a
+     * successful ipv4 response, we want to go ahead and tell the ipv6 request
+     * that if it fails or times out to not try again since we have the data
+     * we need.
+     *
+     * Our initial implementation of this would terminate retries if we got any
+     * successful response (ipv4 _or_ ipv6).  But we did get some user-reported
+     * issues with this that had bad system configs and odd behavior:
+     *  https://github.com/alpinelinux/docker-alpine/issues/366
+     *
+     * Essentially the ipv6 query succeeded but the ipv4 query failed or timed
+     * out, and so we only returned the ipv6 address, but the host couldn't
+     * use ipv6.  If we continued to allow ipv4 retries it would have found a
+     * server that worked and returned both address classes (this is clearly
+     * unexpected behavior).
+     *
+     * At some point down the road if ipv6 actually becomes required and
+     * reliable we can drop this ipv4 check.
+     */
+    if (addinfostatus == ARES_SUCCESS && ai_has_ipv4(hquery->ai)) {
       terminate_retries(hquery, ares_dns_record_get_id(dnsrec));
     }
   }
@@ -675,20 +706,20 @@ static ares_bool_t next_dns_lookup(struct host_query *hquery)
   switch (hquery->hints.ai_family) {
     case AF_INET:
       hquery->remaining += 1;
-      ares_query_dnsrec(hquery->channel, name, ARES_CLASS_IN, ARES_REC_TYPE_A,
+      ares_query_nolock(hquery->channel, name, ARES_CLASS_IN, ARES_REC_TYPE_A,
                         host_callback, hquery, &hquery->qid_a);
       break;
     case AF_INET6:
       hquery->remaining += 1;
-      ares_query_dnsrec(hquery->channel, name, ARES_CLASS_IN,
+      ares_query_nolock(hquery->channel, name, ARES_CLASS_IN,
                         ARES_REC_TYPE_AAAA, host_callback, hquery,
                         &hquery->qid_aaaa);
       break;
     case AF_UNSPEC:
       hquery->remaining += 2;
-      ares_query_dnsrec(hquery->channel, name, ARES_CLASS_IN, ARES_REC_TYPE_A,
+      ares_query_nolock(hquery->channel, name, ARES_CLASS_IN, ARES_REC_TYPE_A,
                         host_callback, hquery, &hquery->qid_a);
-      ares_query_dnsrec(hquery->channel, name, ARES_CLASS_IN,
+      ares_query_nolock(hquery->channel, name, ARES_CLASS_IN,
                         ARES_REC_TYPE_AAAA, host_callback, hquery,
                         &hquery->qid_aaaa);
       break;

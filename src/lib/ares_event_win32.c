@@ -39,7 +39,7 @@
 #  include <limits.h>
 #endif
 
-#ifdef _WIN32
+#if defined(USE_WINSOCK)
 
 /* IMPLEMENTATION NOTES
  * ====================
@@ -972,5 +972,3 @@ const ares_event_sys_t ares_evsys_win32 = { "win32",
 #if defined(__clang__)
 #  pragma GCC diagnostic pop
 #endif
-
- 

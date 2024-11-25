@@ -88,6 +88,7 @@ extern std::vector<std::tuple<ares_evsys_t, int>>       evsys_families;
 extern std::vector<std::pair<int, bool>>                families_modes;
 extern std::vector<std::tuple<ares_evsys_t, int, bool>> evsys_families_modes;
 
+// Hopefully a more accurate sleep than sleep_for()
 void ares_sleep_time(unsigned int ms);
 
 // Process all pending work on ares-owned file descriptors, plus
@@ -308,7 +309,7 @@ private:
 // Test fixture that uses a mock DNS server.
 class MockChannelOptsTest : public LibraryTest {
 public:
-  MockChannelOptsTest(int count, int family, bool force_tcp,
+  MockChannelOptsTest(int count, int family, bool force_tcp, bool honor_sysconfig,
                       struct ares_options *givenopts, int optmask);
   ~MockChannelOptsTest();
 
@@ -338,7 +339,7 @@ class MockChannelTest
     public ::testing::WithParamInterface<std::pair<int, bool>> {
 public:
   MockChannelTest()
-    : MockChannelOptsTest(1, GetParam().first, GetParam().second, nullptr, 0)
+    : MockChannelOptsTest(1, GetParam().first, GetParam().second, false, nullptr, 0)
   {
   }
 };
@@ -346,7 +347,7 @@ public:
 class MockUDPChannelTest : public MockChannelOptsTest,
                            public ::testing::WithParamInterface<int> {
 public:
-  MockUDPChannelTest() : MockChannelOptsTest(1, GetParam(), false, nullptr, 0)
+  MockUDPChannelTest() : MockChannelOptsTest(1, GetParam(), false, false, nullptr, 0)
   {
   }
 };
@@ -354,7 +355,7 @@ public:
 class MockTCPChannelTest : public MockChannelOptsTest,
                            public ::testing::WithParamInterface<int> {
 public:
-  MockTCPChannelTest() : MockChannelOptsTest(1, GetParam(), true, nullptr, 0)
+  MockTCPChannelTest() : MockChannelOptsTest(1, GetParam(), true, false, nullptr, 0)
   {
   }
 };
@@ -364,21 +365,14 @@ public:
   MockEventThreadOptsTest(int count, ares_evsys_t evsys, int family,
                           bool force_tcp, struct ares_options *givenopts,
                           int optmask)
-    : MockChannelOptsTest(count, family, force_tcp,
+    : MockChannelOptsTest(count, family, force_tcp, false,
                           FillOptionsET(&evopts_, givenopts, evsys),
                           optmask | ARES_OPT_EVENT_THREAD)
   {
-    cancel_ms_ = 0;
-    isup       = true;
-    thread     = std::thread(&MockEventThreadOptsTest::ProcessThread, this);
   }
 
   ~MockEventThreadOptsTest()
   {
-    mutex.lock();
-    isup = false;
-    mutex.unlock();
-    thread.join();
   }
 
   static struct ares_options *FillOptionsET(struct ares_options *opts,
@@ -394,21 +388,9 @@ public:
     return opts;
   }
 
-  void Process(unsigned int cancel_ms = 0)
-  {
-    mutex.lock();
-    cancel_ms_ = cancel_ms;
-    mutex.unlock();
-    ares_queue_wait_empty(channel_, -1);
-  }
-
+  void Process(unsigned int cancel_ms = 0);
 private:
-  void                ProcessThread();
   struct ares_options evopts_;
-  unsigned int        cancel_ms_;
-  bool                isup;
-  std::mutex          mutex;
-  std::thread         thread;
 };
 
 class MockEventThreadTest
@@ -512,6 +494,51 @@ struct HostResult {
 
 std::ostream &operator<<(std::ostream &os, const HostResult &result);
 
+// C++ wrapper for ares_dns_record_t.
+struct AresDnsRecord {
+  ~AresDnsRecord()
+  {
+    ares_dns_record_destroy(dnsrec_);
+    dnsrec_ = NULL;
+  }
+
+  AresDnsRecord() : dnsrec_(NULL)
+  {
+  }
+
+  void SetDnsRecord(const ares_dns_record_t *dnsrec)
+  {
+    if (dnsrec_ != NULL) {
+      ares_dns_record_destroy(dnsrec_);
+    }
+    if (dnsrec == NULL) {
+      return;
+    }
+    dnsrec_ = ares_dns_record_duplicate(dnsrec);
+  }
+
+  ares_dns_record_t *dnsrec_ = NULL;
+};
+
+std::ostream &operator<<(std::ostream &os, const AresDnsRecord &result);
+
+// Structure that describes the result of an ares_host_callback invocation.
+struct QueryResult {
+  QueryResult() : done_(false), status_(ARES_SUCCESS), timeouts_(0)
+  {
+  }
+
+  // Whether the callback has been invoked.
+  bool          done_;
+  // Explicitly provided result information.
+  ares_status_t status_;
+  size_t        timeouts_;
+  // Contents of the ares_dns_record_t structure if provided
+  AresDnsRecord dnsrec_;
+};
+
+std::ostream &operator<<(std::ostream &os, const QueryResult &result);
+
 // Structure that describes the result of an ares_callback invocation.
 struct SearchResult {
   // Whether the callback has been invoked.
@@ -572,6 +599,8 @@ std::ostream &operator<<(std::ostream &os, const AddrInfoResult &result);
 // structures.
 void          HostCallback(void *data, int status, int timeouts,
                            struct hostent *hostent);
+void          QueryCallback(void *data, ares_status_t status, size_t timeouts,
+                            const ares_dns_record_t *dnsrec);
 void SearchCallback(void *data, int status, int timeouts, unsigned char *abuf,
                     int alen);
 void SearchCallbackDnsRec(void *data, ares_status_t status, size_t timeouts,
@@ -731,6 +760,58 @@ int RunInContainer(ContainerFilesystem *fs, const std::string &hostname,
       EXPECT_EQ(0, RunInContainer(&chroot, hostname, domainname, fn));        \
     }                                                                         \
     int ICLASS_NAME(casename, testname)::InnerTestBody()
+
+/* Derived from googletest/include/gtest/gtest-param-test.h, specifically the
+ * TEST_P() macro, and some fixes to try to be compatible with different
+ * versions. */
+#ifndef GTEST_ATTRIBUTE_UNUSED_
+#  define GTEST_ATTRIBUTE_UNUSED_
+#endif
+#ifndef GTEST_INTERNAL_ATTRIBUTE_MAYBE_UNUSED
+#  define GTEST_INTERNAL_ATTRIBUTE_MAYBE_UNUSED
+#endif
+#  define CONTAINED_TEST_P(test_suite_name, test_name, hostname, domainname, \
+                           files)                                            \
+    class GTEST_TEST_CLASS_NAME_(test_suite_name, test_name)                 \
+      : public test_suite_name {                                             \
+    public:                                                                  \
+      GTEST_TEST_CLASS_NAME_(test_suite_name, test_name)()                   \
+      {                                                                      \
+      }                                                                      \
+      int  InnerTestBody();                                                  \
+      void TestBody()                                                        \
+      {                                                                      \
+        ContainerFilesystem chroot(files, "..");                             \
+        VoidToIntFn         fn = [this](void) -> int {                       \
+          ares_reinit(this->channel_);                                       \
+          ares_sleep_time(100);                                              \
+          return this->InnerTestBody();                                      \
+        };                                                                   \
+        EXPECT_EQ(0, RunInContainer(&chroot, hostname, domainname, fn));     \
+      }                                                                      \
+                                                                             \
+    private:                                                                 \
+      static int AddToRegistry()                                             \
+      {                                                                      \
+        ::testing::UnitTest::GetInstance()                                   \
+          ->parameterized_test_registry()                                    \
+          .GetTestSuitePatternHolder<test_suite_name>(                       \
+            GTEST_STRINGIFY_(test_suite_name),                               \
+            ::testing::internal::CodeLocation(__FILE__, __LINE__))           \
+          ->AddTestPattern(                                                  \
+            GTEST_STRINGIFY_(test_suite_name), GTEST_STRINGIFY_(test_name),  \
+            new ::testing::internal::TestMetaFactory<GTEST_TEST_CLASS_NAME_( \
+              test_suite_name, test_name)>(),                                \
+            ::testing::internal::CodeLocation(__FILE__, __LINE__));          \
+        return 0;                                                            \
+      }                                                                      \
+      GTEST_INTERNAL_ATTRIBUTE_MAYBE_UNUSED static int                       \
+        gtest_registering_dummy_ GTEST_ATTRIBUTE_UNUSED_;                    \
+    };                                                                       \
+    int GTEST_TEST_CLASS_NAME_(test_suite_name,                              \
+                               test_name)::gtest_registering_dummy_ =        \
+      GTEST_TEST_CLASS_NAME_(test_suite_name, test_name)::AddToRegistry();   \
+    int GTEST_TEST_CLASS_NAME_(test_suite_name, test_name)::InnerTestBody()
 
 #endif
 

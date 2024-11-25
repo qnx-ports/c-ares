@@ -82,7 +82,7 @@ static char *lookup_service(unsigned short port, unsigned int flags, char *buf,
                             size_t buflen);
 #ifdef HAVE_STRUCT_SOCKADDR_IN6_SIN6_SCOPE_ID
 static void append_scopeid(const struct sockaddr_in6 *addr6,
-                           unsigned int scopeid, char *buf, size_t buflen);
+                           unsigned int flags, char *buf, size_t buflen);
 #endif
 static char *ares_striendstr(const char *s1, const char *s2);
 
@@ -173,14 +173,15 @@ static void  ares_getnameinfo_int(ares_channel_t        *channel,
       if (sa->sa_family == AF_INET) {
         niquery->family = AF_INET;
         memcpy(&niquery->addr.addr4, addr, sizeof(niquery->addr.addr4));
-        ares_gethostbyaddr(channel, &addr->sin_addr, sizeof(struct in_addr),
-                           AF_INET, nameinfo_callback, niquery);
+        ares_gethostbyaddr_nolock(channel, &addr->sin_addr,
+                                  sizeof(struct in_addr), AF_INET,
+                                  nameinfo_callback, niquery);
       } else {
         niquery->family = AF_INET6;
         memcpy(&niquery->addr.addr6, addr6, sizeof(niquery->addr.addr6));
-        ares_gethostbyaddr(channel, &addr6->sin6_addr,
-                           sizeof(struct ares_in6_addr), AF_INET6,
-                           nameinfo_callback, niquery);
+        ares_gethostbyaddr_nolock(channel, &addr6->sin6_addr,
+                                  sizeof(struct ares_in6_addr), AF_INET6,
+                                  nameinfo_callback, niquery);
       }
     }
   }
