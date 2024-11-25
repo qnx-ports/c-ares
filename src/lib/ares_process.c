@@ -81,16 +81,6 @@ static void ares__query_disassociate_from_conn(struct query *query)
 }
 
 
-static void ares__query_disassociate_from_conn(struct query *query)
-{
-  /* If its not part of a connection, it can't be tracked for timeouts either */
-  ares__slist_node_destroy(query->node_queries_by_timeout);
-  ares__llist_node_destroy(query->node_queries_to_conn);
-  query->node_queries_by_timeout = NULL;
-  query->node_queries_to_conn    = NULL;
-  query->conn                    = NULL;
-}
-
 /* Invoke the server state callback after a success or failure */
 static void invoke_server_state_cb(const struct server_state *server,
                                    ares_bool_t success, int flags)
