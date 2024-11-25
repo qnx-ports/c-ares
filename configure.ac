@@ -45,6 +45,7 @@ AM_INIT_AUTOMAKE([foreign subdir-objects 1.9.6])
 LT_INIT([win32-dll,pic,disable-fast-install,aix-soname=svr4])
 AC_LANG([C])
 AC_PROG_CC
+AC_PROG_CXX
 AM_PROG_CC_C_O
 AC_PROG_EGREP
 AC_PROG_INSTALL
@@ -112,6 +113,7 @@ AC_ARG_ENABLE(tests,
     fi
   ]
 )
+
 
 AC_ARG_ENABLE(cares-threads,
   AS_HELP_STRING([--disable-cares-threads], [Disable building of thread safety support]),
@@ -241,20 +243,32 @@ fi
 AM_CONDITIONAL(CARES_SYMBOL_HIDING, test "x$symbol_hiding" = "xyes")
 AC_SUBST(CARES_SYMBOL_HIDING_CFLAG)
 
+dnl Cross-compilation for qnx uses QCC, which does not support c90. QNX's CXX stdlib implementation also requires a more modern standard.
+AC_ARG_ENABLE(qcc_compat,
+  AS_HELP_STRING([--enable-qcc-compat], [Allows proper usage of the QNX stdlib.]),
+  [qcc_compat="$enableval"]
+)
 
 if test "$enable_warnings" = "yes"; then
   AX_APPEND_COMPILE_FLAGS([-Wall -Wextra -Waggregate-return -Wcast-align -Wcast-qual -Wconversion -Wdeclaration-after-statement -Wdouble-promotion -Wfloat-equal -Wformat-security -Winit-self -Wjump-misses-init -Wlogical-op -Wmissing-braces -Wmissing-declarations -Wmissing-format-attribute -Wmissing-include-dirs -Wmissing-prototypes -Wnested-externs -Wno-coverage-mismatch -Wold-style-definition -Wpacked -Wpedantic -Wpointer-arith -Wredundant-decls -Wshadow -Wsign-conversion -Wstrict-overflow -Wstrict-prototypes -Wtrampolines -Wundef -Wunreachable-code -Wunused -Wvariadic-macros -Wvla -Wwrite-strings -Werror=implicit-int -Werror=implicit-function-declaration -Werror=partial-availability -Wno-long-long ],
     [AM_CFLAGS], [-Werror])
 
-  dnl Android requires c99, all others should use c90
-  case $host_os in
-    *android*)
-      AX_APPEND_COMPILE_FLAGS([-std=c99], [AM_CFLAGS], [-Werror])
-      ;;
-    *)
-      AX_APPEND_COMPILE_FLAGS([-std=c90], [AM_CFLAGS], [-Werror])
-      ;;
-  esac
+  dnl QNX cross-compilation requires c11 or higher. passed in as a flag
+  if test $qcc_compat = "yes"; then
+    AX_APPEND_COMPILE_FLAGS([-std=c11], [AM_CFLAGS], [-Werror])
+
+  else
+    dnl Android requires c99, all others should use c90
+    case $host_os in
+      *android*)
+        AX_APPEND_COMPILE_FLAGS([-std=c99], [AM_CFLAGS], [-Werror])
+        ;;
+      *)
+        AX_APPEND_COMPILE_FLAGS([-std=c90], [AM_CFLAGS], [-Werror])
+        ;;
+    esac
+
+  fi 
 fi
 
 if test "$ax_cv_c_compiler_vendor" = "intel"; then
@@ -813,6 +827,13 @@ if test "x$build_tests" != "xno" -a "x$cross_compiling" = "xyes" ; then
     AC_MSG_ERROR([*** Tests not supported when cross compiling])
   fi
 fi
+
+dnl Forces compiling of tests. Useful for cross compiling; as with correct libtools env variable settings, tests can cross-compile. 
+AC_ARG_ENABLE(test_override,
+  AS_HELP_STRING([--enable-tests-build-override], [overrides all checks and builds tests.]),
+  [build_tests="$enableval"]
+)
+
 if test "x$build_tests" != "xno" ; then
   PKG_CHECK_MODULES([GMOCK], [gmock], [ have_gmock=yes ], [ have_gmock=no ])
   if test "x$have_gmock" = "xno" ; then

@@ -69,6 +69,15 @@ void ares_destroy(ares_channel_t *channel)
    * callbacks need to hold a channel lock. */
   ares_channel_lock(channel);
 
+  /* Remove QNX-Specifics */
+  #ifdef __QNX__
+    free(channel->conf_domain);
+    channel->conf_domain = NULL;
+
+    free(channel->conf_resolv);
+    channel->conf_resolv = NULL;
+  #endif
+
   /* Destroy all queries */
   node = ares_llist_node_first(channel->all_queries);
   while (node != NULL) {

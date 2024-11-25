@@ -66,6 +66,12 @@ void ares_gethostbyaddr_nolock(ares_channel_t *channel, const void *addr,
 {
   struct addr_query *aquery;
 
+
+  /* QNX-Specific: check for changed configuration */
+  #ifdef __QNX__
+    qnx_check_for_config_reload(channel);
+  #endif
+
   if (family != AF_INET && family != AF_INET6) {
     callback(arg, ARES_ENOTIMP, 0, NULL);
     return;

@@ -70,7 +70,13 @@
 #  define getenv(ptr) ares_getenv(ptr)
 #endif
 
+
+#ifndef __QNX__
 #define DEFAULT_TIMEOUT 2000 /* milliseconds */
+#else /* !__QNX__ */
+#define DEFAULT_TIMEOUT 3000 /* milliseconds */
+#endif /* __QNX__ */
+
 #define DEFAULT_TRIES   3
 #ifndef INADDR_NONE
 #  define INADDR_NONE 0xffffffff
@@ -254,6 +260,13 @@ struct ares_channeldata {
   ares_sock_state_cb   sock_state_cb;
   void                *sock_state_cb_data;
 
+  #ifdef __QNX__
+    struct		timespec res_conf_time;
+    uint64_t		max_cache_time_in_nsec; /* 0 means do not cache (although (options & RES_INIT) == 0 in the same circumstances, RES_INFINITE_CACHE_TIME means never expire the cache (infinite) */
+    char			*conf_domain; /*%< the last read value for _CS_DOMAIN -- used for caching */
+    char			*conf_resolv; /*%< the last read value for _CS_RESOLVE -- used for caching */
+  #endif /* __QNX__ */
+
   ares_sock_create_callback           sock_create_cb;
   void                               *sock_create_cb_data;
 
@@ -381,7 +394,15 @@ typedef struct {
   ares_bool_t      rotate;
   size_t           timeout_ms;
   ares_bool_t      usevc;
+
+  #ifdef __QNX__
+    uint64_t	   max_cache_time_in_nsec;
+  #endif /* __QNX__ */
 } ares_sysconfig_t;
+
+#ifdef __QNX__
+  extern ares_sysconfig_t sysconfig;
+#endif /* __QNX__ */
 
 ares_status_t ares_sysconfig_set_options(ares_sysconfig_t *sysconfig,
                                          const char       *str);
@@ -467,6 +488,12 @@ ares_status_t ares_in_addr_to_sconfig_llist(const struct in_addr *servers,
                                             ares_llist_t        **llist);
 ares_status_t ares_get_server_addr(const ares_server_t *server,
                                    ares_buf_t          *buf);
+
+#ifdef __QNX__
+  #define RES_INFINITE_CACHE_TIME ((uint64_t)-1)
+  void ares__check_for_config_reload(ares_channel channel);
+  void ares__check_for_config_reload_force(ares_channel channel, int force);
+#endif /* __QNX__ */
 
 struct ares_hosts_entry;
 typedef struct ares_hosts_entry ares_hosts_entry_t;

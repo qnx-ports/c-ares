@@ -477,6 +477,13 @@ ares_status_t ares_init_by_options(ares_channel_t            *channel,
       if (status != ARES_SUCCESS) {
         return status; /* LCOV_EXCL_LINE: OutOfMemory */
       }
+
+    /* QNX-Specific */
+    #ifdef __QNXNTO__
+      /* Setting the nameservers via this API is an infinite setting */
+      channel->max_cache_time_in_nsec = RES_INFINITE_CACHE_TIME;
+    #endif
+
     }
   }
 

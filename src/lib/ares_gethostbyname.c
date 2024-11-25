@@ -102,6 +102,11 @@ void ares_gethostbyname(ares_channel_t *channel, const char *name, int family,
   struct ares_addrinfo_hints hints;
   struct host_query         *ghbn_arg;
 
+  /* QNX-Specific: check for changed configuration */
+  #ifdef __QNX__
+    qnx_check_for_config_reload(channel);
+  #endif
+
   if (!callback) {
     return;
   }

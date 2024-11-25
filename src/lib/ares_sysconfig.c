@@ -491,13 +491,27 @@ static ares_status_t ares_sysconfig_apply(ares_channel_t         *channel,
     channel->flags |= ARES_FLAG_USEVC;
   }
 
+  #ifdef __QNX__
+    if (sysconfig->max_cache_time_in_nsec) {
+      channel->max_cache_time_in_nsec = sysconfig->max_cache_time_in_nsec;
+    }
+  #endif /* __QNX__ */
+
   return ARES_SUCCESS;
 }
+
+#ifdef __QNX__
+ares_sysconfig_t sysconfig;
+#endif  /* __QNX__ */
 
 ares_status_t ares_init_by_sysconfig(ares_channel_t *channel)
 {
   ares_status_t    status;
+
+  /* QNX Specific: Do not put in function scope*/
+  #ifndef __QNX__
   ares_sysconfig_t sysconfig;
+  #endif
 
   memset(&sysconfig, 0, sizeof(sysconfig));
   sysconfig.ndots = 1; /* Default value if not otherwise set */
