@@ -387,13 +387,6 @@ static ares_status_t configure_socket(ares_conn_t *conn)
   }
 #endif
 
-  /* No need to emit SIGPIPE on socket errors */
-#if defined(SO_NOSIGPIPE)
-  {
-    int opt = 1;
-    setsockopt(s, SOL_SOCKET, SO_NOSIGPIPE, (void *)&opt, sizeof(opt));
-  }
-#endif
 
   /* Set the socket's send and receive buffer sizes. */
   if (channel->socket_send_buffer_size > 0 &&
