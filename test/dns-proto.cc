@@ -34,6 +34,33 @@
 #include <stdlib.h>
 
 #include <sstream>
+#include <algorithm>
+
+#if defined(_WIN32) && !defined(strcasecmp)
+#  define strcasecmp(a,b) stricmp(a,b)
+#endif
+
+void arestest_strtolower(char *dest, const char *src, size_t dest_size)
+{
+  size_t len;
+
+  if (dest == NULL)
+    return;
+
+  memset(dest, 0, dest_size);
+
+  if (src == NULL)
+    return;
+
+  len = strlen(src);
+  if (len >= dest_size)
+    return;
+
+  for (size_t i = 0; i<len; i++) {
+    dest[i] = (char)tolower(src[i]);
+  }
+}
+
 
 namespace ares {
 
@@ -272,8 +299,14 @@ std::string QuestionToString(const std::vector<byte>& packet,
   }
   *len -= (int)enclen;
   *data += enclen;
-  ss << "'" << name << "' ";
+
+  // DNS 0x20 may mix case, output as all lower for checks as the mixed case
+  // is really more of an internal thing
+  char lowername[256];
+  arestest_strtolower(lowername, name, sizeof(lowername));
   ares_free_string(name);
+
+  ss << "'" << lowername << "' ";
   if (*len < NS_QFIXEDSZ) {
     ss << "(too short, len left " << *len << ")";
     return ss.str();
@@ -341,21 +374,21 @@ std::string RRToString(const std::vector<byte>& packet,
     case T_TXT: {
       const byte* p = *data;
       while (p < (*data + rdatalen)) {
-        int len = *p++;
-        if ((p + len) <= (*data + rdatalen)) {
-          std::string txt(p, p + len);
-          ss << " " << len << ":'" << txt << "'";
+        int tlen = *p++;
+        if ((p + tlen) <= (*data + rdatalen)) {
+          std::string txt(p, p + tlen);
+          ss << " " << tlen << ":'" << txt << "'";
         } else {
           ss << "(string too long)";
         }
-        p += len;
+        p += tlen;
       }
       break;
     }
     case T_CNAME:
     case T_NS:
     case T_PTR: {
-      int rc = ares_expand_name(*data, packet.data(), (int)packet.size(), &name, &enclen);
+      rc = ares_expand_name(*data, packet.data(), (int)packet.size(), &name, &enclen);
       if (rc != ARES_SUCCESS) {
         ss << "(error from ares_expand_name)";
         break;
@@ -366,7 +399,7 @@ std::string RRToString(const std::vector<byte>& packet,
     }
     case T_MX:
       if (rdatalen > 2) {
-        int rc = ares_expand_name(*data + 2, packet.data(), (int)packet.size(), &name, &enclen);
+        rc = ares_expand_name(*data + 2, packet.data(), (int)packet.size(), &name, &enclen);
         if (rc != ARES_SUCCESS) {
           ss << "(error from ares_expand_name)";
           break;
@@ -384,7 +417,7 @@ std::string RRToString(const std::vector<byte>& packet,
         unsigned long weight = DNS__16BIT(p + 2);
         unsigned long port = DNS__16BIT(p + 4);
         p += 6;
-        int rc = ares_expand_name(p, packet.data(), (int)packet.size(), &name, &enclen);
+        rc = ares_expand_name(p, packet.data(), (int)packet.size(), &name, &enclen);
         if (rc != ARES_SUCCESS) {
           ss << "(error from ares_expand_name)";
           break;
@@ -411,7 +444,7 @@ std::string RRToString(const std::vector<byte>& packet,
     }
     case T_SOA: {
       const byte* p = *data;
-      int rc = ares_expand_name(p, packet.data(), (int)packet.size(), &name, &enclen);
+      rc = ares_expand_name(p, packet.data(), (int)packet.size(), &name, &enclen);
       if (rc != ARES_SUCCESS) {
         ss << "(error from ares_expand_name)";
         break;
@@ -447,22 +480,22 @@ std::string RRToString(const std::vector<byte>& packet,
         p += 4;
         ss << order << " " << pref;
 
-        int len = *p++;
-        std::string flags(p, p + len);
+        int nlen = *p++;
+        std::string flags(p, p + nlen);
         ss << " " << flags;
-        p += len;
+        p += nlen;
 
-        len = *p++;
-        std::string service(p, p + len);
+        nlen = *p++;
+        std::string service(p, p + nlen);
         ss << " '" << service << "'";
-        p += len;
+        p += nlen;
 
-        len = *p++;
-        std::string regexp(p, p + len);
+        nlen = *p++;
+        std::string regexp(p, p + nlen);
         ss << " '" << regexp << "'";
-        p += len;
+        p += nlen;
 
-        int rc = ares_expand_name(p, packet.data(), (int)packet.size(), &name, &enclen);
+        rc = ares_expand_name(p, packet.data(), (int)packet.size(), &name, &enclen);
         if (rc != ARES_SUCCESS) {
           ss << "(error from ares_expand_name)";
           break;
@@ -498,7 +531,7 @@ void PushInt16(std::vector<byte>* data, int value) {
   data->push_back((byte)value & 0x00ff);
 }
 
-std::vector<byte> EncodeString(const std::string& name) {
+std::vector<byte> EncodeString(const std::string &name) {
   std::vector<byte> data;
   std::stringstream ss(name);
   std::string label;
@@ -515,9 +548,14 @@ std::vector<byte> EncodeString(const std::string& name) {
   return data;
 }
 
-std::vector<byte> DNSQuestion::data() const {
+std::vector<byte> DNSQuestion::data(const char *request_name) const {
   std::vector<byte> data;
-  std::vector<byte> encname = EncodeString(name_);
+  std::vector<byte> encname;
+  if (request_name != nullptr && strcasecmp(request_name, name_.c_str()) == 0) {
+    encname = EncodeString(request_name);
+  } else {
+    encname = EncodeString(name_);
+  }
   data.insert(data.end(), encname.begin(), encname.end());
   PushInt16(&data, rrtype_);
   PushInt16(&data, qclass_);
@@ -641,7 +679,7 @@ std::vector<byte> DNSNaptrRR::data() const {
   return data;
 }
 
-std::vector<byte> DNSPacket::data() const {
+std::vector<byte> DNSPacket::data(const char *request_name) const {
   std::vector<byte> data;
   PushInt16(&data, qid_);
   byte b = 0x00;
@@ -669,7 +707,7 @@ std::vector<byte> DNSPacket::data() const {
   PushInt16(&data, count);
 
   for (const std::unique_ptr<DNSQuestion>& question : questions_) {
-    std::vector<byte> qdata = question->data();
+    std::vector<byte> qdata = question->data(request_name);
     data.insert(data.end(), qdata.begin(), qdata.end());
   }
   for (const std::unique_ptr<DNSRR>& rr : answers_) {

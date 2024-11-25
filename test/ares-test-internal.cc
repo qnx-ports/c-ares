@@ -42,11 +42,10 @@ extern "C" {
 #undef PACKAGE_STRING
 #undef PACKAGE_TARNAME
 // ... so we can include the library's config without symbol redefinitions.
-#include "ares_setup.h"
+#include "ares_private.h"
 #include "ares_inet_net_pton.h"
 #include "ares_data.h"
 #include "ares_strsplit.h"
-#include "ares_private.h"
 #include "ares__htable.h"
 
 #ifdef HAVE_ARPA_INET_H
@@ -463,10 +462,14 @@ TEST_F(LibraryTest, DNSRecord) {
   EXPECT_EQ(ARES_SUCCESS,
     ares_dns_record_rr_add(&rr, dnsrec, ARES_SECTION_ANSWER, "example.com",
       ARES_REC_TYPE_TXT, ARES_CLASS_IN, 3600));
-  const char txt[] = "blah=here blah=there anywhere";
+  const char txt1[] = "blah=here blah=there anywhere";
+  const char txt2[] = "some other record";
   EXPECT_EQ(ARES_SUCCESS,
-    ares_dns_rr_set_bin(rr, ARES_RR_TXT_DATA, (unsigned char *)txt,
-      sizeof(txt)));
+    ares_dns_rr_add_abin(rr, ARES_RR_TXT_DATA, (unsigned char *)txt1,
+      sizeof(txt1)-1));
+   EXPECT_EQ(ARES_SUCCESS,
+    ares_dns_rr_add_abin(rr, ARES_RR_TXT_DATA, (unsigned char *)txt2,
+      sizeof(txt2)-1));
   /* SIG */
   EXPECT_EQ(ARES_SUCCESS,
     ares_dns_record_rr_add(&rr, dnsrec, ARES_SECTION_ANSWER, "example.com",
@@ -736,7 +739,7 @@ TEST_F(LibraryTest, DNSRecord) {
     ares__buf_append_str(printmsg, ares_dns_section_tostr((ares_dns_section_t)i));
     ares__buf_append_str(printmsg, " SECTION:\n");
     for (size_t j = 0; j < ares_dns_record_rr_cnt(dnsrec, (ares_dns_section_t)i); j++) {
-      const ares_dns_rr_t *rr = ares_dns_record_rr_get(dnsrec, (ares_dns_section_t)i, j);
+      rr = ares_dns_record_rr_get(dnsrec, (ares_dns_section_t)i, j);
       ares__buf_append_str(printmsg, ares_dns_rr_get_name(rr));
       ares__buf_append_str(printmsg, ".\t\t\t");
       ares__buf_append_str(printmsg, ares_dns_class_tostr(ares_dns_rr_get_class(rr)));
@@ -784,6 +787,17 @@ TEST_F(LibraryTest, DNSRecord) {
             size_t templen;
             ares__buf_append_str(printmsg, (const char *)ares_dns_rr_get_bin(rr, keys[k], &templen));
             ares__buf_append_byte(printmsg, '"');
+            break;
+          case ARES_DATATYPE_ABINP:
+            for (size_t a=0; a<ares_dns_rr_get_abin_cnt(rr, keys[k]); a++) {
+              if (a != 0) {
+                ares__buf_append_byte(printmsg, ' ');
+              }
+              ares__buf_append_byte(printmsg, '"');
+              size_t templen;
+              ares__buf_append_str(printmsg, (const char *)ares_dns_rr_get_abin(rr, keys[k], a, &templen));
+              ares__buf_append_byte(printmsg, '"');
+            }
             break;
           case ARES_DATATYPE_OPT:
             /* TODO */
@@ -1011,7 +1025,7 @@ TEST_F(LibraryTest, BufMisuse) {
   EXPECT_EQ((size_t)0, ares__buf_get_position(NULL));
   EXPECT_NE(ARES_SUCCESS, ares__buf_set_position(NULL, 0));
   EXPECT_NE(ARES_SUCCESS, ares__dns_name_parse(NULL, NULL, ARES_FALSE));
-  EXPECT_NE(ARES_SUCCESS, ares__buf_parse_dns_binstr(NULL, 0, NULL, NULL, ARES_FALSE));
+  EXPECT_NE(ARES_SUCCESS, ares__buf_parse_dns_binstr(NULL, 0, NULL, NULL));
 }
 
 TEST_F(LibraryTest, HtableMisuse) {

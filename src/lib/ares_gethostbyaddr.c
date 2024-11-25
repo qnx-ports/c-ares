@@ -25,7 +25,7 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include "ares_setup.h"
+#include "ares_private.h"
 
 #ifdef HAVE_NETINET_IN_H
 #  include <netinet/in.h>
@@ -38,11 +38,8 @@
 #endif
 
 #include "ares_nameser.h"
-
-#include "ares.h"
 #include "ares_inet_net_pton.h"
 #include "ares_platform.h"
-#include "ares_private.h"
 
 struct addr_query {
   /* Arguments passed to ares_gethostbyaddr() */
@@ -136,8 +133,9 @@ static void next_lookup(struct addr_query *aquery)
       case 'b':
         name = ares_dns_addr_to_ptr(&aquery->addr);
         if (name == NULL) {
-          end_aquery(aquery, ARES_ENOMEM, NULL); /* LCOV_EXCL_LINE: OutOfMemory */
-          return; /* LCOV_EXCL_LINE: OutOfMemory */
+          end_aquery(aquery, ARES_ENOMEM,
+                     NULL); /* LCOV_EXCL_LINE: OutOfMemory */
+          return;           /* LCOV_EXCL_LINE: OutOfMemory */
         }
         aquery->remaining_lookups = p + 1;
         ares_query_nolock(aquery->channel, name, ARES_CLASS_IN,

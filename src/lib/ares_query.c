@@ -25,17 +25,11 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include "ares_setup.h"
+#include "ares_private.h"
 
 #ifdef HAVE_NETINET_IN_H
 #  include <netinet/in.h>
 #endif
-
-#include "ares_nameser.h"
-
-#include "ares.h"
-#include "ares_dns.h"
-#include "ares_private.h"
 
 typedef struct {
   ares_callback_dnsrec callback;
@@ -94,7 +88,7 @@ ares_status_t ares_query_nolock(ares_channel_t *channel, const char *name,
     (size_t)(channel->flags & ARES_FLAG_EDNS) ? channel->ednspsz : 0);
   if (status != ARES_SUCCESS) {
     callback(arg, status, 0, NULL); /* LCOV_EXCL_LINE: OutOfMemory */
-    return status; /* LCOV_EXCL_LINE: OutOfMemory */
+    return status;                  /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   qquery = ares_malloc(sizeof(*qquery));
@@ -147,7 +141,7 @@ void ares_query(ares_channel_t *channel, const char *name, int dnsclass,
   carg = ares__dnsrec_convert_arg(callback, arg);
   if (carg == NULL) {
     callback(arg, ARES_ENOMEM, 0, NULL, 0); /* LCOV_EXCL_LINE: OutOfMemory */
-    return; /* LCOV_EXCL_LINE: OutOfMemory */
+    return;                                 /* LCOV_EXCL_LINE: OutOfMemory */
   }
 
   ares_query_dnsrec(channel, name, (ares_dns_class_t)dnsclass,

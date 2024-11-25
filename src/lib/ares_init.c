@@ -25,7 +25,7 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include "ares_setup.h"
+#include "ares_private.h"
 
 #ifdef HAVE_SYS_PARAM_H
 #  include <sys/param.h>
@@ -61,10 +61,8 @@
 #  include <iphlpapi.h>
 #endif
 
-#include "ares.h"
 #include "ares_inet_net_pton.h"
 #include "ares_platform.h"
-#include "ares_private.h"
 #include "ares_event.h"
 
 #ifdef __QNXNTO__
@@ -397,7 +395,7 @@ static ares_status_t init_by_defaults(ares_channel_t *channel)
     hostname = ares_malloc(len);
     if (!hostname) {
       rc = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
-      goto error; /* LCOV_EXCL_LINE: OutOfMemory */
+      goto error;       /* LCOV_EXCL_LINE: OutOfMemory */
     }
 
     do {
@@ -410,7 +408,7 @@ static ares_status_t init_by_defaults(ares_channel_t *channel)
         p     = ares_realloc(hostname, len);
         if (!p) {
           rc = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
-          goto error; /* LCOV_EXCL_LINE: OutOfMemory */
+          goto error;       /* LCOV_EXCL_LINE: OutOfMemory */
         }
         hostname = p;
         continue;
@@ -429,12 +427,12 @@ static ares_status_t init_by_defaults(ares_channel_t *channel)
       channel->domains = ares_malloc(sizeof(char *));
       if (!channel->domains) {
         rc = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
-        goto error; /* LCOV_EXCL_LINE: OutOfMemory */
+        goto error;       /* LCOV_EXCL_LINE: OutOfMemory */
       }
       channel->domains[0] = ares_strdup(dot + 1);
       if (!channel->domains[0]) {
         rc = ARES_ENOMEM; /* LCOV_EXCL_LINE: OutOfMemory */
-        goto error; /* LCOV_EXCL_LINE: OutOfMemory */
+        goto error;       /* LCOV_EXCL_LINE: OutOfMemory */
       }
       channel->ndomains = 1;
     }

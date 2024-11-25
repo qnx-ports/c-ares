@@ -42,46 +42,6 @@ using testing::DoAll;
 namespace ares {
 namespace test {
 
-TEST_P(MockEventThreadTest, Basic) {
-  std::vector<byte> reply = {
-    0x00, 0x00,  // qid
-    0x84, // response + query + AA + not-TC + not-RD
-    0x00, // not-RA + not-Z + not-AD + not-CD + rc=NoError
-    0x00, 0x01,  // 1 question
-    0x00, 0x01,  // 1 answer RRs
-    0x00, 0x00,  // 0 authority RRs
-    0x00, 0x00,  // 0 additional RRs
-    // Question
-    0x03, 'w', 'w', 'w',
-    0x06, 'g', 'o', 'o', 'g', 'l', 'e',
-    0x03, 'c', 'o', 'm',
-    0x00,
-    0x00, 0x01,  // type A
-    0x00, 0x01,  // class IN
-    // Answer
-    0x03, 'w', 'w', 'w',
-    0x06, 'g', 'o', 'o', 'g', 'l', 'e',
-    0x03, 'c', 'o', 'm',
-    0x00,
-    0x00, 0x01,  // type A
-    0x00, 0x01,  // class IN
-    0x00, 0x00, 0x01, 0x00,  // TTL
-    0x00, 0x04,  // rdata length
-    0x01, 0x02, 0x03, 0x04
-  };
-
-  ON_CALL(server_, OnRequest("www.google.com", T_A))
-    .WillByDefault(SetReplyData(&server_, reply));
-
-  HostResult result;
-  ares_gethostbyname(channel_, "www.google.com.", AF_INET, HostCallback, &result);
-  Process();
-  EXPECT_TRUE(result.done_);
-  std::stringstream ss;
-  ss << result.host_;
-  EXPECT_EQ("{'www.google.com' aliases=[] addrs=[1.2.3.4]}", ss.str());
-}
-
 // UDP only so mock server doesn't get confused by concatenated requests
 TEST_P(MockUDPEventThreadTest, GetHostByNameParallelLookups) {
   DNSPacket rsp1;
@@ -176,7 +136,10 @@ TEST_P(MockUDPEventThreadTest, TruncationRetry) {
 static int sock_cb_count = 0;
 static int SocketConnectCallback(ares_socket_t fd, int type, void *data) {
   int rc = *(int*)data;
+<<<<<<< HEAD
   if (verbose) std::cerr << "SocketConnectCallback(" << fd << ") invoked" << std::endl;
+=======
+>>>>>>> v1.32
   (void)type;
   sock_cb_count++;
   if (verbose) std::cerr << "SocketConnectCallback(fd: " << fd << ", cnt: " << sock_cb_count << ") invoked" << std::endl;
@@ -289,6 +252,58 @@ TEST_P(MockUDPEventThreadMaxQueriesTest, GetHostByNameParallelLookups) {
     EXPECT_EQ("{'www.google.com' aliases=[] addrs=[2.3.4.5]}", ss.str());
   }
 }
+
+/* This test case is likely to fail in heavily loaded environments, it was
+ * there to stress the windows event system.  Not needed to be on normally */
+#if 0
+class MockUDPEventThreadSingleQueryPerConnTest
+    : public MockEventThreadOptsTest,
+      public ::testing::WithParamInterface<std::tuple<ares_evsys_t,int>> {
+ public:
+  MockUDPEventThreadSingleQueryPerConnTest()
+    : MockEventThreadOptsTest(1, std::get<0>(GetParam()), std::get<1>(GetParam()), false,
+                          FillOptions(&opts_),
+                          ARES_OPT_UDP_MAX_QUERIES) {}
+  static struct ares_options* FillOptions(struct ares_options * opts) {
+    memset(opts, 0, sizeof(struct ares_options));
+    opts->udp_max_queries = 1;
+    return opts;
+  }
+ private:
+  struct ares_options opts_;
+};
+
+#define LOTSOFCONNECTIONS_CNT 64
+TEST_P(MockUDPEventThreadSingleQueryPerConnTest, LotsOfConnections) {
+  DNSPacket rsp;
+  rsp.set_response().set_aa()
+    .add_question(new DNSQuestion("www.google.com", T_A))
+    .add_answer(new DNSARR("www.google.com", 100, {2, 3, 4, 5}));
+  ON_CALL(server_, OnRequest("www.google.com", T_A))
+    .WillByDefault(SetReply(&server_, &rsp));
+
+  // Get notified of new sockets so we can validate how many are created
+  int rc = ARES_SUCCESS;
+  ares_set_socket_callback(channel_, SocketConnectCallback, &rc);
+  sock_cb_count = 0;
+
+  HostResult result[LOTSOFCONNECTIONS_CNT];
+  for (size_t i=0; i<LOTSOFCONNECTIONS_CNT; i++) {
+    ares_gethostbyname(channel_, "www.google.com.", AF_INET, HostCallback, &result[i]);
+  }
+
+  Process();
+
+  EXPECT_EQ(LOTSOFCONNECTIONS_CNT, sock_cb_count);
+
+  for (size_t i=0; i<LOTSOFCONNECTIONS_CNT; i++) {
+    std::stringstream ss;
+    EXPECT_TRUE(result[i].done_);
+    ss << result[i].host_;
+    EXPECT_EQ("{'www.google.com' aliases=[] addrs=[2.3.4.5]}", ss.str());
+  }
+}
+#endif
 
 class CacheQueriesEventThreadTest
     : public MockEventThreadOptsTest,
@@ -862,6 +877,43 @@ TEST_P(MockEventThreadTest, PartialQueryCancel) {
   Process(100);
   EXPECT_TRUE(result.done_);
   EXPECT_EQ(ARES_ECANCELLED, result.status_);
+}
+
+// Test case for Issue #798, we're really looking for a crash, the results
+// don't matter.  Should either be successful or canceled.
+TEST_P(MockEventThreadTest, BulkCancel) {
+  std::vector<byte> nothing;
+  DNSPacket reply;
+  reply.set_response().set_aa()
+    .add_question(new DNSQuestion("www.google.com", T_A))
+    .add_answer(new DNSARR("www.google.com", 0x0100, {0x01, 0x02, 0x03, 0x04}));
+
+  ON_CALL(server_, OnRequest("www.google.com", T_A))
+    .WillByDefault(SetReply(&server_, &reply));
+
+#define BULKCANCEL_LOOP 5
+#define BULKCANCEL_CNT 50
+  for (size_t l = 0; l<BULKCANCEL_LOOP; l++) {
+    HostResult result[BULKCANCEL_CNT];
+    for (size_t i = 0; i<BULKCANCEL_CNT; i++) {
+      ares_gethostbyname(channel_, "www.google.com.", AF_INET, HostCallback, &result[i]);
+    }
+    // After 1ms, issues ares_cancel(), there should be queries outstanding that
+    // are cancelled.
+    Process(1);
+
+    size_t success_cnt = 0;
+    size_t cancel_cnt = 0;
+    for (size_t i = 0; i<BULKCANCEL_CNT; i++) {
+      EXPECT_TRUE(result[i].done_);
+      EXPECT_TRUE(result[i].status_ == ARES_ECANCELLED || result[i].status_ == ARES_SUCCESS);
+      if (result[i].done_ && result[i].status_ == ARES_SUCCESS)
+        success_cnt++;
+      if (result[i].done_ && result[i].status_ == ARES_ECANCELLED)
+        cancel_cnt++;
+    }
+    if (verbose) std::cerr << "success: " << success_cnt << ", cancel: " << cancel_cnt << std::endl;
+  }
 }
 
 TEST_P(MockEventThreadTest, UnspecifiedFamilyV6) {
@@ -1581,6 +1633,10 @@ INSTANTIATE_TEST_SUITE_P(AddressFamilies, MockEDNSEventThreadTest, ::testing::Va
 INSTANTIATE_TEST_SUITE_P(TransportModes, NoRotateMultiMockEventThreadTest, ::testing::ValuesIn(ares::test::evsys_families_modes), ares::test::PrintEvsysFamilyMode);
 
 INSTANTIATE_TEST_SUITE_P(TransportModes, ServerFailoverOptsMockEventThreadTest, ::testing::ValuesIn(ares::test::evsys_families_modes), ares::test::PrintEvsysFamilyMode);
+
+#if 0
+INSTANTIATE_TEST_SUITE_P(AddressFamilies, MockUDPEventThreadSingleQueryPerConnTest, ::testing::ValuesIn(ares::test::evsys_families), ares::test::PrintEvsysFamily);
+#endif
 
 }  // namespace test
 }  // namespace ares

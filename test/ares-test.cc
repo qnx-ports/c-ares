@@ -421,6 +421,7 @@ void DefaultChannelModeTest::Process(unsigned int cancel_ms) {
 
 MockServer::MockServer(int family, unsigned short port)
   : udpport_(port), tcpport_(port), qid_(-1) {
+  reply_ = nullptr;
   // Create a TCP socket to receive data on.
   tcp_data_ = NULL;
   tcp_data_len_ = 0;
@@ -522,8 +523,12 @@ static unsigned short getaddrport(struct sockaddr_storage *addr)
 {
   if (addr->ss_family == AF_INET)
     return ntohs(((struct sockaddr_in *)(void *)addr)->sin_port);
+  if (addr->ss_family == AF_INET6)
+    return ntohs(((struct sockaddr_in6 *)(void *)addr)->sin6_port);
 
-  return ntohs(((struct sockaddr_in6 *)(void *)addr)->sin6_port);
+  /* TCP should use getpeername() to get the port, getting this from recvfrom
+   * won't work */
+  return 0;
 }
 
 void MockServer::ProcessPacket(ares_socket_t fd, struct sockaddr_storage *addr, ares_socklen_t addrlen,
@@ -562,21 +567,22 @@ void MockServer::ProcessPacket(ares_socket_t fd, struct sockaddr_storage *addr, 
   }
   if (enclen > qlen) {
     std::cerr << "(error, encoded name len " << enclen << "bigger than remaining data " << qlen << " bytes)" << std::endl;
+    ares_free_string(name);
     return;
   }
   qlen -= (int)enclen;
   question += enclen;
-  std::string namestr(name);
-  ares_free_string(name);
 
   if (qlen < 4) {
     std::cerr << "Unexpected question size (" << qlen
               << " bytes after name)" << std::endl;
+    ares_free_string(name);
     return;
   }
   if (DNS_QUESTION_CLASS(question) != C_IN) {
     std::cerr << "Unexpected question class (" << DNS_QUESTION_CLASS(question)
               << ")" << std::endl;
+    ares_free_string(name);
     return;
   }
   int rrtype = DNS_QUESTION_TYPE(question);
@@ -587,11 +593,11 @@ void MockServer::ProcessPacket(ares_socket_t fd, struct sockaddr_storage *addr, 
     std::cerr << "received " << (fd == udpfd_ ? "UDP" : "TCP") << " request " << reqstr
               << " on port " << (fd == udpfd_ ? udpport_ : tcpport_)
               << ":" << getaddrport(addr) << std::endl;
-    std::cerr << "ProcessRequest(" << qid << ", '" << namestr
+    std::cerr << "ProcessRequest(" << qid << ", '" << name
               << "', " << RRTypeToString(rrtype) << ")" << std::endl;
   }
-  ProcessRequest(fd, addr, addrlen, reqstr, qid, namestr, rrtype);
-
+  ProcessRequest(fd, addr, addrlen, reqstr, qid, name, rrtype);
+  ares_free_string(name);
 }
 
 void MockServer::ProcessFD(ares_socket_t fd) {
@@ -601,7 +607,7 @@ void MockServer::ProcessFD(ares_socket_t fd) {
   }
   if (fd == tcpfd_) {
     ares_socket_t connfd = accept(tcpfd_, NULL, NULL);
-    if (connfd < 0) {
+    if (connfd == ARES_SOCKET_BAD) {
       std::cerr << "Error accepting connection on fd " << fd << std::endl;
     } else {
       connfds_.insert(connfd);
@@ -612,6 +618,7 @@ void MockServer::ProcessFD(ares_socket_t fd) {
   // Activity on a data-bearing file descriptor.
   struct sockaddr_storage addr;
   socklen_t addrlen = sizeof(addr);
+  memset(&addr, 0, sizeof(addr));
   byte buffer[2048];
   ares_ssize_t len = (ares_ssize_t)recvfrom(fd, BYTE_CAST buffer, sizeof(buffer), 0,
                      (struct sockaddr *)&addr, &addrlen);
@@ -658,26 +665,33 @@ std::set<ares_socket_t> MockServer::fds() const {
   return result;
 }
 
-
 void MockServer::ProcessRequest(ares_socket_t fd, struct sockaddr_storage* addr,
                                 ares_socklen_t addrlen, const std::string &reqstr,
-                                int qid, const std::string& name, int rrtype) {
+                                int qid, const char *name, int rrtype) {
+
+  /* DNS 0x20 will mix case, do case-insensitive matching of name in request */
+  char lower_name[256];
   int flags = 0;
+  arestest_strtolower(lower_name, name, sizeof(lower_name));
 
   // Before processing, let gMock know the request is happening.
-  OnRequest(name, rrtype);
+  OnRequest(lower_name, rrtype);
 
   // If we are expecting a specific request then check it matches here.
   if (expected_request_.length() > 0) {
     ASSERT_EQ(expected_request_, reqstr);
   }
 
-  if (reply_.size() == 0) {
+  if (reply_ != nullptr) {
+    exact_reply_ = reply_->data(name);
+  }
+
+  if (exact_reply_.size() == 0) {
     return;
   }
 
   // Make a local copy of the current pending reply.
-  std::vector<byte> reply = reply_;
+  std::vector<byte> reply = exact_reply_;
 
   if (qid_ >= 0) {
     // Use the explicitly specified query ID.
@@ -785,6 +799,12 @@ MockChannelOptsTest::MockChannelOptsTest(int count,
     optmask |= ARES_OPT_QUERY_CACHE;
   }
 
+  /* Enable DNS0x20 by default. Need to also turn on default flag of EDNS */
+  if (!(optmask & ARES_OPT_FLAGS)) {
+    optmask |= ARES_OPT_FLAGS;
+    opts.flags = ARES_FLAG_DNS0x20|ARES_FLAG_EDNS;
+  }
+
   EXPECT_EQ(ARES_SUCCESS, ares_init_options(&channel_, &opts, optmask));
   EXPECT_NE(nullptr, channel_);
 
@@ -865,14 +885,13 @@ void MockEventThreadOptsTest::Process(unsigned int cancel_ms) {
     tv_cancel += std::chrono::milliseconds(cancel_ms);
   }
 
-  while (1) {
+  while (ares_queue_active_queries(channel_)) {
+    //if (verbose) std::cerr << "pending queries: " << ares_queue_active_queries(channel_) << std::endl;
+
     int nfds = 0;
     fd_set readers;
-    struct timeval tv;
 
-    if (ares_timeout(channel_, NULL, &tv) == NULL) {
-      break;
-    }
+    struct timeval  tv;
 
     /* c-ares is using its own event thread, so we only need to monitor the
      * extrafds passed in */
@@ -916,6 +935,8 @@ void MockEventThreadOptsTest::Process(unsigned int cancel_ms) {
       }
     }
   }
+
+  //if (verbose) std::cerr << "pending queries at process end: " << ares_queue_active_queries(channel_) << std::endl;
 }
 
 std::ostream& operator<<(std::ostream& os, const HostResult& result) {
@@ -938,8 +959,13 @@ HostEnt::HostEnt(const struct hostent *hostent) : addrtype_(-1) {
   if (!hostent)
     return;
 
-  if (hostent->h_name)
-    name_ = hostent->h_name;
+  if (hostent->h_name) {
+    // DNS 0x20 may mix case, output as all lower for checks as the mixed case
+    // is really more of an internal thing
+    char lowername[256];
+    arestest_strtolower(lowername, hostent->h_name, sizeof(lowername));
+    name_ = lowername;
+  }
 
   if (hostent->h_aliases) {
     char** palias = hostent->h_aliases;
@@ -1061,7 +1087,10 @@ std::ostream& operator<<(std::ostream& os, const AddrInfo& ai) {
     if(next_cname->name) {
       os << next_cname->name;
     }
-    if((next_cname = next_cname->next))
+
+    next_cname = next_cname->next;
+
+    if (next_cname != NULL)
       os << ", ";
     else
       os << " ";
@@ -1090,7 +1119,8 @@ std::ostream& operator<<(std::ostream& os, const AddrInfo& ai) {
       os << ":" << port;
     }
     os << "]";
-    if((next = next->ai_next))
+    next = next->ai_next;
+    if (next != NULL)
       os << ", ";
   }
   os << '}';

@@ -9,6 +9,9 @@ concurrency:
   group: ${{ github.ref }}-msys2
   cancel-in-progress: true
 
+env:
+  GTEST_ARGS: "-4 --gtest_filter=-*LiveSearchTXT*:*LiveSearchANY*:*LiveGetLocalhostByAddr*"
+
 jobs:
   build:
     runs-on: windows-latest
@@ -17,10 +20,11 @@ jobs:
       max-parallel: 2
       matrix:
         include:
-          - { msystem: MINGW64, env: x86_64,       cmake_opts: "" }
-          - { msystem: MINGW32, env: i686,         cmake_opts: "" }
-          - { msystem: UCRT64,  env: ucrt-x86_64,  cmake_opts: "" }
-          - { msystem: CLANG64, env: clang-x86_64, cmake_opts: "-DCMAKE_CXX_FLAGS=-fsanitize=undefined -DCMAKE_C_FLAGS=-fsanitize=undefined -DCMAKE_SHARED_LINKER_FLAGS=-fsanitize=undefined -DCMAKE_EXE_LINKER_FLAGS=-fsanitize=undefined" }
+          - { msystem: CLANG64, env: clang-x86_64, extra_packages: "mingw-w64-clang-x86_64-clang mingw-w64-clang-x86_64-clang-analyzer" }
+          - { msystem: MINGW64, env: x86_64,       extra_packages: "mingw-w64-x86_64-gcc"                                               }
+          - { msystem: MINGW32, env: i686,         extra_packages: "mingw-w64-i686-gcc"                                                 }
+          # No need to test UCRT64 since clang64 uses UCRT
+          # - { msystem: UCRT64,  env: ucrt-x86_64  }
     defaults:
       run:
         shell: msys2 {0}
@@ -40,6 +44,8 @@ jobs:
             mingw-w64-${{ matrix.env }}-cmake
             mingw-w64-${{ matrix.env }}-ninja
             mingw-w64-${{ matrix.env }}-gtest
+            mingw-w64-${{ matrix.env }}-lldb
+            ${{ matrix.extra_packages }}
       - name: Install gcc compiler
         if: ${{ matrix.env != 'clang-x86_64' }}
         run: |
@@ -48,15 +54,20 @@ jobs:
         if: ${{ matrix.env == 'clang-x86_64' }}
         run: |
           pacman --noconfirm -S --needed mingw-w64-${{ matrix.env }}-clang mingw-w64-${{ matrix.env }}-clang-analyzer
+
       - name: Checkout c-ares
         uses: actions/checkout@v4
       - name: "CMake: build and test c-ares"
         run: |
-          cmake -DCMAKE_BUILD_TYPE=DEBUG -DCMAKE_INSTALL_PREFIX=C:/projects/build-cares/test_install -DCARES_STATIC=ON -DCARES_STATIC_PIC=ON -DCARES_BUILD_TESTS=ON ${{ matrix.cmake_opts }} -Bbuild_cmake -G Ninja .
+          cmake -DCMAKE_BUILD_TYPE=DEBUG -DCMAKE_INSTALL_PREFIX=C:/projects/build-cares/test_install -DCARES_STATIC=ON -DCARES_STATIC_PIC=ON -DCARES_BUILD_TESTS=ON -Bbuild_cmake -G Ninja .
           cmake --build build_cmake
           ./build_cmake/bin/adig.exe www.google.com
           ./build_cmake/bin/ahost.exe www.google.com
-          ./build_cmake/bin/arestest.exe -4 -v --gtest_filter=-*LiveSearchTXT*:*LiveSearchANY*:*LiveGetLocalhostByAddr*
+          if [ "${{ matrix.msystem }}" != "MINGW32" ] ; then
+            lldb --batch -o 'run ${{ env.GTEST_ARGS }}' -k 'thread backtrace all' -k 'quit 1' ./build_cmake/bin/arestest.exe
+          else
+            ./build_cmake/bin/arestest.exe ${{ env.GTEST_ARGS }}
+          fi
       - name: "Autotools: build and test c-ares"
         run: |
           autoreconf -fi
@@ -67,3 +78,43 @@ jobs:
           ./src/tools/adig.exe www.google.com
           ./src/tools/ahost.exe www.google.com
           ./test/arestest.exe -4 -v --gtest_filter=-*LiveSearchTXT*:*LiveSearchANY*:*LiveGetLocalhostByAddr*
+          if [ "${{ matrix.msystem }}" != "MINGW32" ] ; then
+            lldb --batch -o 'run ${{ env.GTEST_ARGS }}' -k 'thread backtrace all' -k 'quit 1' ./test/arestest.exe
+          else
+            ./test/arestest.exe ${{ env.GTEST_ARGS }}
+          fi
+      - name: "CMake: UBSAN: build and test c-ares"
+        # Bogus alignment errors on i686, so lets not run UBSAN on i686.
+        if: ${{ matrix.env == 'clang-x86_64' }}
+        env:
+          CMAKE_OPTS: "-DCMAKE_CXX_FLAGS=-fsanitize=undefined -DCMAKE_C_FLAGS=-fsanitize=undefined -DCMAKE_SHARED_LINKER_FLAGS=-fsanitize=undefined -DCMAKE_EXE_LINKER_FLAGS=-fsanitize=undefined"
+        run: |
+          cmake -DCMAKE_BUILD_TYPE=DEBUG -DCMAKE_INSTALL_PREFIX=C:/projects/build-cares/test_install -DCARES_STATIC=ON -DCARES_STATIC_PIC=ON -DCARES_BUILD_TESTS=ON ${{ env.CMAKE_OPTS }} -Bbuild_ubsan -G Ninja .
+          cmake --build build_ubsan
+          ./build_ubsan/bin/adig.exe www.google.com
+          ./build_ubsan/bin/ahost.exe www.google.com
+          lldb --batch -o 'run ${{ env.GTEST_ARGS }}' -k 'thread backtrace all' -k 'quit 1' ./build_ubsan/bin/arestest.exe
+#          ./build_ubsan/bin/arestest.exe ${{ env.GTEST_ARGS }}
+      - name: "CMake: ASAN: build and test c-ares"
+        if: ${{ matrix.env == 'clang-x86_64' || matrix.env == 'clang-i686' }}
+        env:
+          CMAKE_OPTS: "-DCMAKE_CXX_FLAGS=-fsanitize=address -DCMAKE_C_FLAGS=-fsanitize=address -DCMAKE_SHARED_LINKER_FLAGS=-fsanitize=address -DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address"
+        run: |
+          cmake -DCMAKE_BUILD_TYPE=DEBUG -DCMAKE_INSTALL_PREFIX=C:/projects/build-cares/test_install -DCARES_STATIC=ON -DCARES_STATIC_PIC=ON -DCARES_BUILD_TESTS=ON ${{ env.CMAKE_OPTS }} -Bbuild_asan -G Ninja .
+          cmake --build build_asan
+          ./build_asan/bin/adig.exe www.google.com
+          ./build_asan/bin/ahost.exe www.google.com
+          lldb --batch -o 'run ${{ env.GTEST_ARGS }}' -k 'thread backtrace all' -k 'quit 1' ./build_asan/bin/arestest.exe
+#          ./build_asan/bin/arestest.exe ${{ env.GTEST_ARGS }}
+      - name: "Autotools: Static Analyzer: build c-ares"
+        if: ${{ matrix.env == 'clang-x86_64' || matrix.env == 'clang-i686' }}
+        # Cmake won't work because it somehow mangles linker args and it can't find core windows libraries
+        # Must build static only with autotools otherwise libtool creates a wrapper with reportable issues
+        run: |
+          autoreconf -fi
+          mkdir build_analyze
+          cd build_analyze
+          scan-build --use-cc=clang --use-c++=clang++ -v ../configure --enable-static --disable-shared --disable-tests
+          scan-build --use-cc=clang --use-c++=clang++ -v make -j3
+          ./src/tools/adig.exe www.google.com
+          ./src/tools/ahost.exe www.google.com

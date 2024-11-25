@@ -23,7 +23,7 @@
  *
  * SPDX-License-Identifier: MIT
  */
-#include "ares_setup.h"
+#include "ares_private.h"
 
 #ifdef HAVE_GETSERVBYPORT_R
 #  if !defined(GETSERVBYPORT_R_ARGS) || (GETSERVBYPORT_R_ARGS < 4) || \
@@ -51,9 +51,7 @@
 #  include <iphlpapi.h>
 #endif
 
-#include "ares.h"
 #include "ares_ipv6.h"
-#include "ares_private.h"
 
 struct nameinfo_query {
   ares_nameinfo_callback callback;
@@ -81,8 +79,8 @@ static void  nameinfo_callback(void *arg, int status, int timeouts,
 static char *lookup_service(unsigned short port, unsigned int flags, char *buf,
                             size_t buflen);
 #ifdef HAVE_STRUCT_SOCKADDR_IN6_SIN6_SCOPE_ID
-static void append_scopeid(const struct sockaddr_in6 *addr6,
-                           unsigned int flags, char *buf, size_t buflen);
+static void append_scopeid(const struct sockaddr_in6 *addr6, unsigned int flags,
+                           char *buf, size_t buflen);
 #endif
 static char *ares_striendstr(const char *s1, const char *s2);
 
@@ -100,11 +98,11 @@ static void  ares_getnameinfo_int(ares_channel_t        *channel,
   /* Validate socket address family and length */
   if (sa && sa->sa_family == AF_INET &&
       salen >= (ares_socklen_t)sizeof(struct sockaddr_in)) {
-    addr = CARES_INADDR_CAST(struct sockaddr_in *, sa);
+    addr = CARES_INADDR_CAST(const struct sockaddr_in *, sa);
     port = addr->sin_port;
   } else if (sa && sa->sa_family == AF_INET6 &&
              salen >= (ares_socklen_t)sizeof(struct sockaddr_in6)) {
-    addr6 = CARES_INADDR_CAST(struct sockaddr_in6 *, sa);
+    addr6 = CARES_INADDR_CAST(const struct sockaddr_in6 *, sa);
     port  = addr6->sin6_port;
   } else {
     callback(arg, ARES_ENOTIMP, 0, NULL, NULL);
@@ -412,8 +410,8 @@ static char *ares_striendstr(const char *s1, const char *s2)
   c1       = c1_begin;
   c2       = s2;
   while (c2 < s2 + s2_len) {
-    lo1 = TOLOWER(*c1);
-    lo2 = TOLOWER(*c2);
+    lo1 = ares__tolower((unsigned char)*c1);
+    lo2 = ares__tolower((unsigned char)*c2);
     if (lo1 != lo2) {
       return NULL;
     } else {

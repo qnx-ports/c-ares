@@ -37,6 +37,7 @@
 #  include <windows.h>
 #else
 #  include <unistd.h>
+#  include <signal.h>
 #  include <netinet/in.h>
 #  include <arpa/inet.h>
 #  include <netdb.h>
@@ -76,6 +77,34 @@ static void ai_callback(void *arg, int status, int timeouts,
   ares_freeaddrinfo(result);
 }
 
+static volatile ares_bool_t is_running = ARES_TRUE;
+
+
+#ifdef _WIN32
+static BOOL WINAPI ctrlc_handler(_In_ DWORD dwCtrlType)
+{
+  switch (dwCtrlType) {
+    case CTRL_C_EVENT:
+      is_running = ARES_FALSE;
+      return TRUE;
+    default:
+      break;
+  }
+  return FALSE;
+}
+#else
+static void ctrlc_handler(int sig)
+{
+  switch (sig) {
+    case SIGINT:
+      is_running = ARES_FALSE;
+      break;
+    default:
+      break;
+  }
+}
+#endif
+
 int main(int argc, char *argv[])
 {
   struct ares_options options;
@@ -102,8 +131,10 @@ int main(int argc, char *argv[])
   }
 
   memset(&options, 0, sizeof(options));
-  optmask       |= ARES_OPT_EVENT_THREAD;
-  options.evsys  = ARES_EVSYS_DEFAULT;
+  optmask                |= ARES_OPT_EVENT_THREAD;
+  options.evsys           = ARES_EVSYS_DEFAULT;
+  optmask                |= ARES_OPT_QUERY_CACHE;
+  options.qcache_max_ttl  = 0;
 
   status = (ares_status_t)ares_init_options(&channel, &options, optmask);
   if (status != ARES_SUCCESS) {
@@ -111,13 +142,23 @@ int main(int argc, char *argv[])
     return 1;
   }
 
+#ifdef _WIN32
+  SetConsoleCtrlHandler(ctrlc_handler, TRUE);
+#else
+  signal(SIGINT, ctrlc_handler);
+#endif
+
   printf("Querying for %s every 1s, press CTRL-C to quit...\n", argv[1]);
 
-  for (count = 1;; count++) {
+  for (count = 1; is_running == ARES_TRUE; count++) {
     struct ares_addrinfo_hints hints;
+    char                      *servers = ares_get_servers_csv(channel);
+
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_UNSPEC;
-    printf("Attempt %zu...\n", count);
+    printf("Attempt %u using server list: %s ...\n", (unsigned int)count, servers);
+    ares_free_string(servers);
+
     ares_getaddrinfo(channel, argv[1], NULL, &hints, ai_callback, argv[1]);
 #ifdef _WIN32
     Sleep(1000);
@@ -126,6 +167,7 @@ int main(int argc, char *argv[])
 #endif
   }
 
+  printf("CTRL-C captured, cleaning up...\n");
   ares_destroy(channel);
   ares_library_cleanup();
 

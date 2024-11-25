@@ -12,7 +12,7 @@ INCLUDE (CheckCSourceCompiles)
 INCLUDE (CheckStructHasMember)
 INCLUDE (CheckLibraryExists)
 
-PROJECT (c-ares LANGUAGES C VERSION "1.31.0" )
+PROJECT (c-ares LANGUAGES C VERSION "1.32.3" )
 
 # Set this version before release
 SET (CARES_VERSION "${PROJECT_VERSION}")
@@ -30,7 +30,7 @@ INCLUDE (GNUInstallDirs) # include this *AFTER* PROJECT(), otherwise paths are w
 # For example, a version of 4:0:2 would generate output such as:
 #    libname.so   -> libname.so.2
 #    libname.so.2 -> libname.so.2.2.0
-SET (CARES_LIB_VERSIONINFO "18:0:16")
+SET (CARES_LIB_VERSIONINFO "19:3:17")
 
 
 OPTION (CARES_STATIC        "Build as a static library"                                             OFF)
@@ -62,8 +62,8 @@ ENDIF ()
 
 INCLUDE (EnableWarnings)
 
-# allow linking against the static runtime library in msvc
 IF (MSVC)
+	# allow linking against the static runtime library in msvc
 	OPTION (CARES_MSVC_STATIC_RUNTIME "Link against the static runtime library" OFF)
 	IF (CARES_MSVC_STATIC_RUNTIME)
 		# CMAKE_CONFIGURATION_TYPES is empty on non-IDE generators (Ninja, NMake)
@@ -423,6 +423,10 @@ CHECK_SYMBOL_EXISTS (if_indextoname  "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_IF_INDE
 CHECK_SYMBOL_EXISTS (if_nametoindex  "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_IF_NAMETOINDEX)
 CHECK_SYMBOL_EXISTS (ConvertInterfaceIndexToLuid  "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_CONVERTINTERFACEINDEXTOLUID)
 CHECK_SYMBOL_EXISTS (ConvertInterfaceLuidToNameA  "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_CONVERTINTERFACELUIDTONAMEA)
+CHECK_SYMBOL_EXISTS (NotifyIpInterfaceChange      "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_NOTIFYIPINTERFACECHANGE)
+CHECK_SYMBOL_EXISTS (RegisterWaitForSingleObject  "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_REGISTERWAITFORSINGLEOBJECT)
+
+
 CHECK_SYMBOL_EXISTS (inet_net_pton   "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_INET_NET_PTON)
 IF (NOT WIN32)
 	# Disabled on Windows, because these functions are only really supported on Windows
@@ -567,7 +571,7 @@ SET (RECVFROM_TYPE_ARG5 "struct sockaddr *")
 SET (RECV_TYPE_ARG4 int)
 SET (GETNAMEINFO_TYPE_ARG1 "struct sockaddr *")
 SET (GETNAMEINFO_TYPE_ARG7 int)
-SET (SEND_TYPE_ARG2 "void *")
+SET (SEND_TYPE_ARG2 "const void *")
 SET (SEND_TYPE_ARG4 int)
 ################################################################################
 
@@ -665,6 +669,9 @@ IF (HAVE_SYS_TYPES_H)
 ENDIF ()
 IF (HAVE_SYS_SOCKET_H)
 	SET (CARES_HAVE_SYS_SOCKET_H 1)
+ENDIF()
+IF (HAVE_SYS_SELECT_H)
+	SET (CARES_HAVE_SYS_SELECT_H 1)
 ENDIF()
 IF (HAVE_WS2TCPIP_H)
 	SET (CARES_HAVE_WS2TCPIP_H 1)

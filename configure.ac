@@ -2,10 +2,10 @@ dnl Copyright (C) The c-ares project and its contributors
 dnl SPDX-License-Identifier: MIT
 AC_PREREQ([2.69])
 
-AC_INIT([c-ares], [1.31.0],
+AC_INIT([c-ares], [1.32.3],
   [c-ares mailing list: http://lists.haxx.se/listinfo/c-ares])
 
-CARES_VERSION_INFO="18:0:16"
+CARES_VERSION_INFO="19:3:17"
 dnl This flag accepts an argument of the form current[:revision[:age]]. So,
 dnl passing -version-info 3:12:1 sets current to 3, revision to 12, and age to
 dnl 1.
@@ -245,42 +245,8 @@ AC_SUBST(CARES_SYMBOL_HIDING_CFLAG)
 
 
 if test "$enable_warnings" = "yes"; then
-  AX_APPEND_COMPILE_FLAGS([-Wall \
-    -Wextra \
-    -Wcast-align \
-    -Wconversion \
-    -Wdeclaration-after-statement \
-    -Wdouble-promotion \
-    -Wfloat-equal \
-    -Wformat-security \
-    -Winit-self \
-    -Wjump-misses-init \
-    -Wlogical-op \
-    -Wmissing-braces \
-    -Wmissing-declarations \
-    -Wmissing-format-attribute \
-    -Wmissing-include-dirs \
-    -Wmissing-prototypes \
-    -Wnested-externs \
-    -Wno-coverage-mismatch \
-    -Wold-style-definition \
-    -Wpacked \
-    -Wpointer-arith \
-    -Wredundant-decls \
-    -Wshadow \
-    -Wsign-conversion \
-    -Wstrict-overflow \
-    -Wstrict-prototypes \
-    -Wtrampolines \
-    -Wundef \
-    -Wunused \
-    -Wvariadic-macros \
-    -Wvla \
-    -Wwrite-strings \
-    -Werror=implicit-int \
-    -Werror=implicit-function-declaration \
-    -Werror=partial-availability \
-  ], [AM_CFLAGS], [-Werror])
+  AX_APPEND_COMPILE_FLAGS([-std=c90 -Wall -Wextra -Waggregate-return -Wcast-align -Wcast-qual -Wconversion -Wdeclaration-after-statement -Wdouble-promotion -Wfloat-equal -Wformat-security -Winit-self -Wjump-misses-init -Wlogical-op -Wmissing-braces -Wmissing-declarations -Wmissing-format-attribute -Wmissing-include-dirs -Wmissing-prototypes -Wnested-externs -Wno-coverage-mismatch -Wold-style-definition -Wpacked -Wpedantic -Wpointer-arith -Wredundant-decls -Wshadow -Wsign-conversion -Wstrict-overflow -Wstrict-prototypes -Wtrampolines -Wundef -Wunreachable-code -Wunused -Wvariadic-macros -Wvla -Wwrite-strings -Werror=implicit-int -Werror=implicit-function-declaration -Werror=partial-availability -Wno-long-long ],
+    [AM_CFLAGS], [-Werror])
 fi
 
 if test "$ax_cv_c_compiler_vendor" = "intel"; then
@@ -611,6 +577,8 @@ AC_CHECK_DECL(kqueue,          [AC_DEFINE([HAVE_KQUEUE],            1, [Define t
 AC_CHECK_DECL(epoll_create1,   [AC_DEFINE([HAVE_EPOLL],             1, [Define to 1 if you have `epoll_{create1,ctl,wait}`])], [], $cares_all_includes)
 AC_CHECK_DECL(ConvertInterfaceIndexToLuid, [AC_DEFINE([HAVE_CONVERTINTERFACEINDEXTOLUID], 1, [Define to 1 if you have `ConvertInterfaceIndexToLuid`])], [], $cares_all_includes)
 AC_CHECK_DECL(ConvertInterfaceLuidToNameA, [AC_DEFINE([HAVE_CONVERTINTERFACELUIDTONAMEA], 1, [Define to 1 if you have `ConvertInterfaceLuidToNameA`])], [], $cares_all_includes)
+AC_CHECK_DECL(NotifyIpInterfaceChange,     [AC_DEFINE([HAVE_NOTIFYIPINTERFACECHANGE],     1, [Define to 1 if you have `NotifyIpInterfaceChange`]    )], [], $cares_all_includes)
+AC_CHECK_DECL(RegisterWaitForSingleObject, [AC_DEFINE([HAVE_REGISTERWAITFORSINGLEOBJECT], 1, [Define to 1 if you have `RegisterWaitForSingleObject`])], [], $cares_all_includes)
 AC_CHECK_DECL(__system_property_get,       [AC_DEFINE([HAVE___SYSTEM_PROPERTY_GET],       1, [Define to 1 if you have `__system_property_get`]      )], [], $cares_all_includes)
 
 
@@ -666,7 +634,7 @@ recvfrom_type_arg5="struct sockaddr *"
 recv_type_arg4=int
 getnameinfo_type_arg1="struct sockaddr *"
 getnameinfo_type_arg7=int
-send_type_arg2="void *"
+send_type_arg2="const void *"
 send_type_arg4=int
 
 AC_DEFINE_UNQUOTED([RECVFROM_TYPE_RETV],     [ ${recvfrom_type_retv} ],     [ recvfrom() return value ])
@@ -686,7 +654,6 @@ AC_DEFINE_UNQUOTED([RECV_TYPE_ARG4],         [ ${recv_type_arg4} ],         [ re
 AC_DEFINE_UNQUOTED([SEND_TYPE_RETV],         [ ${send_type_retv} ],         [ send() return value ])
 AC_DEFINE_UNQUOTED([SEND_TYPE_ARG1],         [ ${send_type_arg1} ],         [ send() arg1 type ])
 AC_DEFINE_UNQUOTED([SEND_TYPE_ARG2],         [ ${send_type_arg2} ],         [ send() arg2 type ])
-AC_DEFINE_UNQUOTED([SEND_QUAL_ARG2],         [ ],                           [ send() arg2 qualifier ])
 AC_DEFINE_UNQUOTED([SEND_TYPE_ARG3],         [ ${send_type_arg3} ],         [ send() arg3 type ])
 AC_DEFINE_UNQUOTED([SEND_TYPE_ARG4],         [ ${send_type_arg4} ],         [ send() arg4 type ])
 
@@ -768,6 +735,9 @@ if test "x$ac_cv_header_sys_types_h" = "xyes" ; then
 fi
 if test "x$ac_cv_header_sys_socket_h" = "xyes" ; then
   CARES_DEFINE_UNQUOTED([CARES_HAVE_SYS_SOCKET_H],[1])
+fi
+if test "x$ac_cv_header_sys_select_h" = "xyes" ; then
+  CARES_DEFINE_UNQUOTED([CARES_HAVE_SYS_SELECT_H],[1])
 fi
 if test "x$ac_cv_header_ws2tcpip_h" = "xyes" ; then
   CARES_DEFINE_UNQUOTED([CARES_HAVE_WS2TCPIP_H],[1])
