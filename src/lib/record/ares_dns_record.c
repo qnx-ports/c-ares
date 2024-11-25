@@ -1664,12 +1664,3 @@ ares_dns_record_t *ares_dns_record_duplicate(const ares_dns_record_t *dnsrec)
   return dest;
 }
 
-ares_dns_record_t *ares_dns_record_duplicate(const ares_dns_record_t *dnsrec)
-{
-  ares_dns_record_t *dest = NULL;
-
-  ares_dns_record_duplicate_ex(&dest, dnsrec);
-  return dest;
-}
-
- 
