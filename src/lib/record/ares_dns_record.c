@@ -1632,30 +1632,6 @@ done:
   return status;
 }
 
-<<<<<<< HEAD:src/lib/ares_dns_record.c
-ares_status_t ares_dns_record_duplicate_ex(ares_dns_record_t **dest,
-                                           const ares_dns_record_t *src)
-{
-  unsigned char     *data     = NULL;
-  size_t             data_len = 0;
-  ares_status_t      status;
-
-  if (dest == NULL || src == NULL) {
-    return ARES_EFORMERR;
-  }
-
-  *dest = NULL;
-
-  status = ares_dns_write(src, &data, &data_len);
-  if (status != ARES_SUCCESS) {
-    return status;
-  }
-
-  status = ares_dns_parse(data, data_len, 0, dest);
-  ares_free(data);
-
-  return status;
-=======
 ares_status_t ares_dns_record_duplicate_ex(ares_dns_record_t      **dest,
                                            const ares_dns_record_t *src)
 {
@@ -1686,7 +1662,6 @@ ares_dns_record_t *ares_dns_record_duplicate(const ares_dns_record_t *dnsrec)
 
   ares_dns_record_duplicate_ex(&dest, dnsrec);
   return dest;
->>>>>>> v1.33:src/lib/record/ares_dns_record.c
 }
 
 ares_dns_record_t *ares_dns_record_duplicate(const ares_dns_record_t *dnsrec)
