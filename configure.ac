@@ -2,10 +2,10 @@ dnl Copyright (C) The c-ares project and its contributors
 dnl SPDX-License-Identifier: MIT
 AC_PREREQ([2.69])
 
-AC_INIT([c-ares], [1.32.3],
+AC_INIT([c-ares], [1.33.1],
   [c-ares mailing list: http://lists.haxx.se/listinfo/c-ares])
 
-CARES_VERSION_INFO="19:3:17"
+CARES_VERSION_INFO="20:1:18"
 dnl This flag accepts an argument of the form current[:revision[:age]]. So,
 dnl passing -version-info 3:12:1 sets current to 3, revision to 12, and age to
 dnl 1.
@@ -243,19 +243,32 @@ fi
 AM_CONDITIONAL(CARES_SYMBOL_HIDING, test "x$symbol_hiding" = "xyes")
 AC_SUBST(CARES_SYMBOL_HIDING_CFLAG)
 
+dnl Cross-compilation for qnx uses QCC, which does not support c90. QNX's CXX stdlib implementation also requires a more modern standard.
 AC_ARG_ENABLE(qcc_compat,
   AS_HELP_STRING([--enable-qcc-compat], [Allows proper usage of the QNX stdlib.]),
   [qcc_compat="$enableval"]
 )
 
 if test "$enable_warnings" = "yes"; then
-  if test "$qcc_compat" = "yes"; then
-      AX_APPEND_COMPILE_FLAGS([-std=c++14 -Wall -Wextra -Waggregate-return -Wcast-align -Wcast-qual -Wconversion -Wdeclaration-after-statement -Wdouble-promotion -Wfloat-equal -Wformat-security -Winit-self -Wjump-misses-init -Wlogical-op -Wmissing-braces -Wmissing-declarations -Wmissing-format-attribute -Wmissing-include-dirs -Wmissing-prototypes -Wnested-externs -Wno-coverage-mismatch -Wold-style-definition -Wpacked -Wpedantic -Wpointer-arith -Wredundant-decls -Wshadow -Wsign-conversion -Wstrict-overflow -Wstrict-prototypes -Wtrampolines -Wundef -Wunreachable-code -Wunused -Wvariadic-macros -Wvla -Wwrite-strings -Werror=implicit-int -Werror=implicit-function-declaration -Werror=partial-availability -Wno-long-long ],
-        [AM_CFLAGS], [-Werror])
+  AX_APPEND_COMPILE_FLAGS([-Wall -Wextra -Waggregate-return -Wcast-align -Wcast-qual -Wconversion -Wdeclaration-after-statement -Wdouble-promotion -Wfloat-equal -Wformat-security -Winit-self -Wjump-misses-init -Wlogical-op -Wmissing-braces -Wmissing-declarations -Wmissing-format-attribute -Wmissing-include-dirs -Wmissing-prototypes -Wnested-externs -Wno-coverage-mismatch -Wold-style-definition -Wpacked -Wpedantic -Wpointer-arith -Wredundant-decls -Wshadow -Wsign-conversion -Wstrict-overflow -Wstrict-prototypes -Wtrampolines -Wundef -Wunreachable-code -Wunused -Wvariadic-macros -Wvla -Wwrite-strings -Werror=implicit-int -Werror=implicit-function-declaration -Werror=partial-availability -Wno-long-long ],
+    [AM_CFLAGS], [-Werror])
+
+  dnl QNX cross-compilation requires c11 or higher. passed in as a flag
+  if test $qcc_compat = "yes"; then
+    AX_APPEND_COMPILE_FLAGS([-std=c11], [AM_CFLAGS], [-Werror])
+
   else
-    AX_APPEND_COMPILE_FLAGS([-std=c90 -Wall -Wextra -Waggregate-return -Wcast-align -Wcast-qual -Wconversion -Wdeclaration-after-statement -Wdouble-promotion -Wfloat-equal -Wformat-security -Winit-self -Wjump-misses-init -Wlogical-op -Wmissing-braces -Wmissing-declarations -Wmissing-format-attribute -Wmissing-include-dirs -Wmissing-prototypes -Wnested-externs -Wno-coverage-mismatch -Wold-style-definition -Wpacked -Wpedantic -Wpointer-arith -Wredundant-decls -Wshadow -Wsign-conversion -Wstrict-overflow -Wstrict-prototypes -Wtrampolines -Wundef -Wunreachable-code -Wunused -Wvariadic-macros -Wvla -Wwrite-strings -Werror=implicit-int -Werror=implicit-function-declaration -Werror=partial-availability -Wno-long-long ],
-      [AM_CFLAGS], [-Werror])
-  fi
+    dnl Android requires c99, all others should use c90
+    case $host_os in
+      *android*)
+        AX_APPEND_COMPILE_FLAGS([-std=c99], [AM_CFLAGS], [-Werror])
+        ;;
+      *)
+        AX_APPEND_COMPILE_FLAGS([-std=c90], [AM_CFLAGS], [-Werror])
+        ;;
+    esac
+
+  fi 
 fi
 
 if test "$ax_cv_c_compiler_vendor" = "intel"; then
@@ -550,6 +563,7 @@ AC_CHECK_DECL(send,            [AC_DEFINE([HAVE_SEND],              1, [Define t
 AC_CHECK_DECL(getnameinfo,     [AC_DEFINE([HAVE_GETNAMEINFO],       1, [Define to 1 if you have `getnameinfo`]    )], [], $cares_all_includes)
 AC_CHECK_DECL(gethostname,     [AC_DEFINE([HAVE_GETHOSTNAME],       1, [Define to 1 if you have `gethostname`]    )], [], $cares_all_includes)
 AC_CHECK_DECL(connect,         [AC_DEFINE([HAVE_CONNECT],           1, [Define to 1 if you have `connect`]        )], [], $cares_all_includes)
+AC_CHECK_DECL(connectx,        [AC_DEFINE([HAVE_CONNECTX],          1, [Define to 1 if you have `connectx`]       )], [], $cares_all_includes)
 AC_CHECK_DECL(closesocket,     [AC_DEFINE([HAVE_CLOSESOCKET],       1, [Define to 1 if you have `closesocket`]    )], [], $cares_all_includes)
 AC_CHECK_DECL(CloseSocket,     [AC_DEFINE([HAVE_CLOSESOCKET_CAMEL], 1, [Define to 1 if you have `CloseSocket`]    )], [], $cares_all_includes)
 AC_CHECK_DECL(fcntl,           [AC_DEFINE([HAVE_FCNTL],             1, [Define to 1 if you have `fcntl`]          )], [], $cares_all_includes)
@@ -812,8 +826,9 @@ if test "x$build_tests" != "xno" -a "x$cross_compiling" = "xyes" ; then
   fi
 fi
 
+dnl Forces compiling of tests. Useful for cross compiling; as with correct libtools env variable settings, tests can cross-compile. 
 AC_ARG_ENABLE(test_override,
-  AS_HELP_STRING([--enable-test-override], [overrides all checks and builds tests.]),
+  AS_HELP_STRING([--enable-tests-build-override], [overrides all checks and builds tests.]),
   [build_tests="$enableval"]
 )
 

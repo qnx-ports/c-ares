@@ -41,7 +41,7 @@ extern "C" {
 #include "ares_setup.h"
 #include "ares_inet_net_pton.h"
 #include "ares_data.h"
-#include "ares_strsplit.h"
+#include "str/ares_strsplit.h"
 #include "ares_private.h"
 }
 
@@ -437,6 +437,17 @@ MockServer::MockServer(int family, unsigned short port)
   setsockopt(tcpfd_, SOL_SOCKET, SO_NOSIGPIPE, (void *)&optval, sizeof(optval));
 #endif
 
+  /* Test system enable TCP FastOpen */
+#if defined(TCP_FASTOPEN)
+#  ifdef __linux__
+  int qlen = 32;
+  setsockopt(tcpfd_, IPPROTO_TCP, TCP_FASTOPEN, &qlen, sizeof(qlen));
+#  else
+  int on = 1;
+  setsockopt(tcpfd_, IPPROTO_TCP, TCP_FASTOPEN, BYTE_CAST &on, sizeof(on));
+#  endif
+#endif
+
   // Create a UDP socket to receive data on.
   udpfd_ = socket(family, SOCK_DGRAM, 0);
   EXPECT_NE(ARES_SOCKET_BAD, udpfd_);
@@ -596,7 +607,7 @@ void MockServer::ProcessPacket(ares_socket_t fd, struct sockaddr_storage *addr, 
     std::cerr << "ProcessRequest(" << qid << ", '" << name
               << "', " << RRTypeToString(rrtype) << ")" << std::endl;
   }
-  ProcessRequest(fd, addr, addrlen, reqstr, qid, name, rrtype);
+  ProcessRequest(fd, addr, addrlen, req, reqstr, qid, name, rrtype);
   ares_free_string(name);
 }
 
@@ -666,7 +677,8 @@ std::set<ares_socket_t> MockServer::fds() const {
 }
 
 void MockServer::ProcessRequest(ares_socket_t fd, struct sockaddr_storage* addr,
-                                ares_socklen_t addrlen, const std::string &reqstr,
+                                ares_socklen_t addrlen, const std::vector<byte> &req,
+                                const std::string &reqstr,
                                 int qid, const char *name, int rrtype) {
 
   /* DNS 0x20 will mix case, do case-insensitive matching of name in request */
@@ -683,7 +695,17 @@ void MockServer::ProcessRequest(ares_socket_t fd, struct sockaddr_storage* addr,
   }
 
   if (reply_ != nullptr) {
-    exact_reply_ = reply_->data(name);
+    ares_dns_record_t *dnsrec = NULL;
+    /* We will *attempt* to parse the request string.  It may be malformed that
+     * will lead to a parse failure.  If so, we just ignore it.  We want to
+     * pass this parsed data structure to the reply generator in case it needs
+     * to extract metadata (such as a DNS client cookie) from the original
+     * request.  If we can't parse it, oh well, we'll just pass NULL, most
+     * replies don't need anything from the request other than the name which
+     * is passed separately. */
+    ares_dns_parse(req.data(), req.size(), 0, &dnsrec);
+    exact_reply_ = reply_->data(name, dnsrec);
+    ares_dns_record_destroy(dnsrec);
   }
 
   if (exact_reply_.size() == 0) {
