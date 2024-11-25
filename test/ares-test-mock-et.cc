@@ -136,10 +136,6 @@ TEST_P(MockUDPEventThreadTest, TruncationRetry) {
 static int sock_cb_count = 0;
 static int SocketConnectCallback(ares_socket_t fd, int type, void *data) {
   int rc = *(int*)data;
-<<<<<<< HEAD
-  if (verbose) std::cerr << "SocketConnectCallback(" << fd << ") invoked" << std::endl;
-=======
->>>>>>> v1.32
   (void)type;
   sock_cb_count++;
   if (verbose) std::cerr << "SocketConnectCallback(fd: " << fd << ", cnt: " << sock_cb_count << ") invoked" << std::endl;
