@@ -17,5 +17,6 @@ test/aclocal.m4
 test/aminclude_static.am
 test/install-sh
 test/Makefile.in
-Makefile.in
 test/depcomp
+src/lib/ares_config.h.in
+*Makefile.in
