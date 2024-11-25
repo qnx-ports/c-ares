@@ -65,7 +65,76 @@
 #include "event/ares_event.h"
 
 #ifdef __QNX__
-#  include "qnx/qnx_funcs.h"
+/***
+ * When updating this port to work with the recursive file system and with the newer version, I foudn these functions.
+ * I'm pretty sure these are part of libsocket, but adding -lsocket to the compiler options in configure.ac did not
+ * work. They really do not belong in the c-ares code but seem to be necessary despite the code duplication - I would recommend
+ * looking into fixing this.
+ * 
+ * I'm pretty sure this is just a lapse in my knowledge of QNX, so hopefully it is an easy fix.
+ * 
+ * Best of luck! -JM
+ */
+
+/* CODE DUPLICATION WARNING: This code is a duplicate of code in
+ * libsocket (resolve/res_init.c) */
+static char *
+getconf(int token)
+{
+  size_t len;
+  char *buf;
+  char *cp;
+
+  if((len=confstr(token,NULL,0))==0) {
+    return(NULL);  /* Token not set */
+  }
+
+  if((buf=malloc(len))==NULL)
+    return(NULL);
+  if(confstr(token,buf,len)==0){
+    *buf = '\0';
+  }
+
+  cp=buf;
+  while(*cp != '\0'){
+    if(*cp=='_')
+    *cp=' ';
+    cp++;
+  }
+
+  return(buf);
+}
+
+
+/* CODE DUPLICATION WARNING: This code is a duplicate of code in
+ * libsocket (resolve/res_init.c) */
+/* returns 1 if the values differ, 0 otherwise */
+static int
+res_conf_str_used_and_differs(const char * previous_value, int token)
+{
+  if (previous_value == NULL || previous_value[0] == '\0') {
+    /* We never used the previous value, so we must be loading via
+     * another technique or the value has changed. Do not cause
+     * needs_reload() to return 0 as a timeout may have occured.
+     */
+    return 1;
+  }
+
+  char * current_value = getconf(token);
+  if (NULL == current_value || current_value[0] == '\0') {
+    /* We could not get a value, or we ran into a memory issue of
+     * some sort. Do not cause needs_reload() to return 0 as a
+     * timeout may have occured.
+     */
+    return 1;
+  }
+
+  int res = (strcmp(previous_value, current_value) == 0) ? 0 : 1;
+  free(current_value);
+  return res;
+}
+
+
 
 
 /* Similar to config_search() defined in ares_sysconfig_files.c */
@@ -74,12 +143,12 @@ static ares_status_t config_domain(ares_channel_t *channel, const char *str,
 {
   if (channel->domains && channel->ndomains > 0) {
     /* if we already have some domains present, free them first */
-    ares__strsplit_free(channel->domains, channel->ndomains);
+    ares_strsplit_free(channel->domains, channel->ndomains);
     channel->domains  = NULL;
     channel->ndomains = 0;
   }
 
-  channel->domains = ares__strsplit(str, ", ", &channel->ndomains);
+  channel->domains = ares_strsplit(str, ", ", &channel->ndomains);
   if (channel->domains == NULL) {
     return ARES_ENOMEM;
   }
@@ -102,11 +171,11 @@ static ares_status_t init_by_qnx_conf(ares_channel_t *channel)
     int status = ARES_SUCCESS;
     char *p;
 
-    ares__channel_lock(channel);
+    ares_channel_lock(channel);
 
     /* CS_RESOLVE and CS_DOMAIN could be set independently */
 
-    if (ares__slist_len(channel->servers) == 0) {  /* don't override ARES_OPT_SERVER */
+    if (ares_slist_len(channel->servers) == 0) {  /* don't override ARES_OPT_SERVER */
       if (channel->conf_resolv)
         free(channel->conf_resolv);
       channel->conf_resolv = NULL;
@@ -123,11 +192,11 @@ static ares_status_t init_by_qnx_conf(ares_channel_t *channel)
           if (strcasecmp(p, "nameserver") == 0) {
             p = strtok(NULL, " \t\n\r");
             if (p) {
-	      status = ares__sconfig_append_fromstr(&sysconfig.sconfig, p, ARES_TRUE);
+	      status = ares_sconfig_append_fromstr(channel, &sysconfig.sconfig, p, ARES_TRUE);
 	      if (status != ARES_SUCCESS) {
 		goto out;
 	      }
-	      status = ares__servers_update(channel, sysconfig.sconfig, ARES_FALSE);
+	      status = ares_servers_update(channel, sysconfig.sconfig, ARES_FALSE);
 	      if (status != ARES_SUCCESS) {
 		goto out;
 	      }
@@ -178,7 +247,7 @@ static ares_status_t init_by_qnx_conf(ares_channel_t *channel)
     clock_gettime(CLOCK_MONOTONIC, &channel->res_conf_time);
 
 out:
-    ares__channel_unlock(channel);
+    ares_channel_unlock(channel);
     return status;
 }
 
@@ -834,7 +903,7 @@ void qnx_check_for_config_reload_force(ares_channel channel, int force)
     channel->tries = new_channel->tries;
     channel->rotate = new_channel->rotate;
 
-    ares__slist_t *servers  = channel->servers;
+    ares_slist_t *servers  = channel->servers;
     channel->servers = new_channel->servers;
     new_channel->servers = servers;
 

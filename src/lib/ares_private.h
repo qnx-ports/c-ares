@@ -491,8 +491,8 @@ ares_status_t ares_get_server_addr(const ares_server_t *server,
 
 #ifdef __QNX__
   #define RES_INFINITE_CACHE_TIME ((uint64_t)-1)
-  void ares__check_for_config_reload(ares_channel channel);
-  void ares__check_for_config_reload_force(ares_channel channel, int force);
+  void qnx_check_for_config_reload(ares_channel channel);
+  void qnx_check_for_config_reload_force(ares_channel channel, int force);
 #endif /* __QNX__ */
 
 struct ares_hosts_entry;

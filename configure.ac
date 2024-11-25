@@ -253,22 +253,22 @@ if test "$enable_warnings" = "yes"; then
   AX_APPEND_COMPILE_FLAGS([-Wall -Wextra -Waggregate-return -Wcast-align -Wcast-qual -Wconversion -Wdeclaration-after-statement -Wdouble-promotion -Wfloat-equal -Wformat-security -Winit-self -Wjump-misses-init -Wlogical-op -Wmissing-braces -Wmissing-declarations -Wmissing-format-attribute -Wmissing-include-dirs -Wmissing-prototypes -Wnested-externs -Wno-coverage-mismatch -Wold-style-definition -Wpacked -Wpedantic -Wpointer-arith -Wredundant-decls -Wshadow -Wsign-conversion -Wstrict-overflow -Wstrict-prototypes -Wtrampolines -Wundef -Wunreachable-code -Wunused -Wvariadic-macros -Wvla -Wwrite-strings -Werror=implicit-int -Werror=implicit-function-declaration -Werror=partial-availability -Wno-long-long ],
     [AM_CFLAGS], [-Werror])
 
+  dnl Android requires c99, all others should use c90
+  case $host_os in
+    *android*)
+      standard_to_use = "c99"
+      ;;
+    *)
+      standard_to_use = "c90"
+      ;;
+  esac
+
   dnl QNX cross-compilation requires c11 or higher. passed in as a flag
   if test $qcc_compat = "yes"; then
-    AX_APPEND_COMPILE_FLAGS([-std=c11], [AM_CFLAGS], [-Werror])
+    standard_to_use = "c++14 -lsocket"
+  fi
 
-  else
-    dnl Android requires c99, all others should use c90
-    case $host_os in
-      *android*)
-        AX_APPEND_COMPILE_FLAGS([-std=c99], [AM_CFLAGS], [-Werror])
-        ;;
-      *)
-        AX_APPEND_COMPILE_FLAGS([-std=c90], [AM_CFLAGS], [-Werror])
-        ;;
-    esac
-
-  fi 
+  AX_APPEND_COMPILE_FLAGS([-std=$standard_to_use], [AM_CFLAGS], [-Werror])
 fi
 
 if test "$ax_cv_c_compiler_vendor" = "intel"; then
@@ -829,7 +829,7 @@ if test "x$build_tests" != "xno" -a "x$cross_compiling" = "xyes" ; then
 fi
 
 dnl Forces compiling of tests. Useful for cross compiling; as with correct libtools env variable settings, tests can cross-compile. 
-AC_ARG_ENABLE(test_override,
+AC_ARG_ENABLE(tests_build_override,
   AS_HELP_STRING([--enable-tests-build-override], [overrides all checks and builds tests.]),
   [build_tests="$enableval"]
 )
