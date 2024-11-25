@@ -19,4 +19,5 @@ test/install-sh
 test/Makefile.in
 test/depcomp
 src/lib/ares_config.h.in
-*Makefile.in
+src/lib/ares_config.h.in~
+*/?Makefile\.in*
